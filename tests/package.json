@@ -1,0 +1,22 @@
+{
+  "name": "ttapi-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Automated tests for Trouble Ticket API - E2E (Playwright) and API tests",
+  "scripts": {
+    "test": "playwright test",
+    "test:api": "playwright test --project=api",
+    "test:e2e": "playwright test --project=e2e --ui",
+    "report:generate": "allure generate allure-results --clean -o allure-report",
+    "report:open": "allure open allure-report",
+    "report": "npm run report:generate && npm run report:open"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^26.0.1",
+    "@types/pg": "^8.20.0",
+    "allure-playwright": "^3.2.0",
+    "pg": "^8.22.0",
+    "typescript": "^5.8.0"
+  }
+}

@@ -1,0 +1,134 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+# Pozwala deployer-owi zapisywać do GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Tylko jeden aktywny deploy na raz; kolejny run anuluje poprzedni w trakcie
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+
+    env:
+      # ── Database ─────────────────────────────────────────────────────────────
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_SSL: false
+
+      # ── Keycloak ──────────────────────────────────────────────────────────────
+      KC_BASE_URL: http://localhost:8180
+      KC_REALM: ttapi
+      KC_CLIENT_ID: ttapi-client
+
+      # ── Tenant credentials ────────────────────────────────────────────────────
+      TENANT_ALPHA_USERNAME: ${{ secrets.TENANT_ALPHA_USERNAME }}
+      TENANT_ALPHA_PASSWORD: ${{ secrets.TENANT_ALPHA_PASSWORD }}
+      TENANT_BETA_USERNAME: ${{ secrets.TENANT_BETA_USERNAME }}
+      TENANT_BETA_PASSWORD: ${{ secrets.TENANT_BETA_PASSWORD }}
+      TENANT_GAMMA_USERNAME: ${{ secrets.TENANT_GAMMA_USERNAME }}
+      TENANT_GAMMA_PASSWORD: ${{ secrets.TENANT_GAMMA_PASSWORD }}
+
+      # ── Frontend & API ────────────────────────────────────────────────────────
+      FRONTEND_URL: http://localhost:3000
+      API_BASE_URL: http://localhost:8080
+
+    steps:
+      # ── Checkout ─────────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Build & start the full stack via Docker Compose ───────────────────────
+      - name: Build and start services
+        run: docker compose -f docker/docker-compose.yaml up -d --build --wait
+        env:
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+
+      # ── Node.js ───────────────────────────────────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+
+      - name: Install test dependencies
+        working-directory: tests
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: tests
+        run: npx playwright install --with-deps chromium
+
+      # ── API tests ─────────────────────────────────────────────────────────────
+      - name: Run API tests
+        working-directory: tests
+        run: npx playwright test --project=api
+
+      # ── E2E tests ─────────────────────────────────────────────────────────────
+      - name: Run E2E tests
+        working-directory: tests
+        run: npx playwright test --project=e2e
+
+      # ── Generate Allure report ────────────────────────────────────────────────
+      - name: Generate Allure report
+        if: always()
+        working-directory: tests
+        run: |
+          npm install -g allure-commandline --quiet
+          allure generate allure-results --clean -o allure-report
+
+      # ── Upload raw results for debugging ──────────────────────────────────────
+      - name: Upload Allure results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: tests/allure-results/
+          retention-days: 7
+
+      # ── Upload report as Pages artifact ───────────────────────────────────────
+      - name: Upload Allure report for GitHub Pages
+        if: always()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: tests/allure-report/
+
+      # ── Tear down ─────────────────────────────────────────────────────────────
+      - name: Stop services
+        if: always()
+        run: docker compose -f docker/docker-compose.yaml down -v
+
+  # ── Deploy raport na GitHub Pages ─────────────────────────────────────────────
+  deploy-report:
+    name: Deploy Allure report to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: test
+    if: always() && github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
