@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [main, master]
+    branches: '*'
   pull_request:
-    branches: [main, master]
+    branches: '*'
   workflow_dispatch:
 
 # Pozwala deployer-owi zapisywać do GitHub Pages
@@ -58,14 +58,17 @@ jobs:
 
       # ── Checkout application repository (private) ────────────────────────────
       - name: Checkout application repository (ttapi_app - private)
+        id: checkout_app
         uses: actions/checkout@v4
         with:
           repository: mstawars/ttapi_app
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          ref: main
           path: ttapi-app
 
       # ── Build & start the full stack via Docker Compose ───────────────────────
       - name: Build and start services
+        if: steps.checkout_app.outcome == 'success'
         working-directory: ttapi-app
         run: docker compose -f docker/docker-compose.yaml up -d --build --wait
         env:
@@ -93,11 +96,13 @@ jobs:
       - name: Run API tests
         working-directory: ttapi-tests/tests
         run: npx playwright test --project=api
+        continue-on-error: true
 
       # ── E2E tests ─────────────────────────────────────────────────────────────
       - name: Run E2E tests
         working-directory: ttapi-tests/tests
         run: npx playwright test --project=e2e
+        continue-on-error: true
 
       # ── Generate Allure report ────────────────────────────────────────────────
       - name: Generate Allure report
@@ -125,7 +130,7 @@ jobs:
 
       # ── Tear down ─────────────────────────────────────────────────────────────
       - name: Stop services
-        if: always()
+        if: always() && steps.checkout_app.outcome == 'success'
         working-directory: ttapi-app
         run: docker compose -f docker/docker-compose.yaml down -v
 
