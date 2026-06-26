@@ -164,4 +164,33 @@ test.describe('Zamykanie zgłoszenia - PATCH /api/v1/troubleTicket/{id}', () => 
       });
     },
   );
+
+  const invalidCloseStatuses = ['new', 'acknowledged', 'inProgress', 'resolved', 'rejected'];
+  for (const invalidStatus of invalidCloseStatuses) {
+    test(
+      `TC-027: PATCH ze statusem '${invalidStatus}' zwraca VALIDATION_ERROR`,
+      async ({ request, acknowledgedTicket }) => {
+        await feature('Zamykanie zgłoszeń');
+        await story('Walidacja payloadu');
+        await severity('high');
+        await description(
+          'Endpoint zamykania akceptuje wyłącznie status closed. ' +
+            'Przekazanie innej wartości status powinno zwrócić VALIDATION_ERROR.',
+        );
+
+        const response = await test.step(
+          `PATCH /troubleTicket/${acknowledgedTicket} { status: ${invalidStatus} }`,
+          async () => closeTicket(request, 'alpha', acknowledgedTicket, invalidStatus),
+        );
+
+        await test.step('Weryfikacja HTTP 4xx i kodu VALIDATION_ERROR', async () => {
+          expect(response.status()).toBeGreaterThanOrEqual(400);
+          expect(response.status()).toBeLessThan(500);
+
+          const body = await response.json();
+          expect(body.code).toBe('VALIDATION_ERROR');
+        });
+      },
+    );
+  }
 });

@@ -41,6 +41,35 @@ export async function createTicket(
 }
 
 /**
+ * GET /api/v1/troubleTicket/{externalId}
+ *
+ * Pobiera szczegóły zgłoszenia o podanym externalId w kontekście podanego tenanta.
+ */
+export async function getTicket(
+  request: APIRequestContext,
+  tenant: string,
+  externalId: string,
+): Promise<APIResponse> {
+  return request.get(`${API}/troubleTicket/${externalId}`, {
+    headers: await bearerHeader(tenant),
+  });
+}
+
+/**
+ * GET /api/v1/troubleTicket
+ *
+ * Zwraca listę zgłoszeń widocznych dla podanego tenanta.
+ */
+export async function listTickets(
+  request: APIRequestContext,
+  tenant: string,
+): Promise<APIResponse> {
+  return request.get(`${API}/troubleTicket`, {
+    headers: await bearerHeader(tenant),
+  });
+}
+
+/**
  * PATCH /api/v1/troubleTicket/{externalId}   body: { status: 'closed' }
  *
  * Zamyka zgłoszenie o podanym externalId w kontekście podanego tenanta.
@@ -49,10 +78,11 @@ export async function closeTicket(
   request: APIRequestContext,
   tenant: string,
   externalId: string,
+  status: string = 'closed',
 ): Promise<APIResponse> {
   return request.patch(`${API}/troubleTicket/${externalId}`, {
     headers: await bearerHeader(tenant),
-    data: { status: 'closed' },
+    data: { status },
   });
 }
 

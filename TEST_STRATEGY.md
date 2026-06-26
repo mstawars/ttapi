@@ -1,8 +1,8 @@
 # Strategia Testów — Trouble Ticket API
 
 **Dokument:** Strategia Testów (Część 1)  
-**Wersja:** 1.0  
-**Data:** 2026-06-24  
+**Wersja:** 1.1  
+**Data:** 2026-06-26  
 **Autor:** Starszy Tester Automatyzacji  
 **Aplikacja:** Trouble Ticket API v1.0.0
 
@@ -86,9 +86,9 @@ Priorytety wyznaczono według kombinacji **ryzyka biznesowego**, **prawdopodobie
 
 ```
                     ┌──────────┐
-                    │  E2E UI  │  ~5%   (Playwright/Cypress)
+                    │  E2E UI  │  ~5%   (Playwright, Typesctipt)
                   ┌─┴──────────┴─┐
-                  │  API Black   │  ~25%  (REST Assured / Axios)
+                  │  API Black   │  ~25%  (Playwright, Typescript)
                   │  Box Tests   │
                 ┌─┴──────────────┴─┐
                 │ Integracyjne     │  ~40%  (Spring Boot Test + Testcontainers)
@@ -121,7 +121,7 @@ Podejście jest **test-in-the-middle** — największy wkład testów integracyj
 
 **Dlaczego:** Testcontainers eliminuje konieczność mocków bazy danych, zapewniając wierność środowiska. MockMvc jest szybsze od pełnego stosu HTTP.
 
-#### 3.2.3 Testy API Black-Box (Contract/E2E API Tests)
+#### 3.2.3 Testy API Black-Box 
 **Technologia:**  Playwright (TypeScript)  
 **Zakres:**
 - Testy działające względem uruchomionego środowiska Docker Compose
@@ -143,17 +143,6 @@ Podejście jest **test-in-the-middle** — największy wkład testów integracyj
 
 **Dlaczego:** Playwright oferuje pełną kontrolę przeglądarki, auto-waiting i wsparcie dla TypeScript (spójność z kodem frontendowym). Zakres jest celowo wąski — E2E testy są drogie w utrzymaniu.
 
-#### 3.2.5 Testy bezpieczeństwa (Security Tests)
-**Technologia:** REST Assured / curl + skrypty  
-**Zakres:**
-- Brak tokenu → HTTP 401
-- Wygasły token → HTTP 401
-- Token bez `tenant_id` claim → zachowanie aplikacji
-- Próba dostępu do zasobu innego tenanta → HTTP 404 (nie 403)
-- SQL Injection w polach tekstowych (OWASP Top 10 A03)
-- Oversized payload (DoS protection)
-
----
 
 ## 4. Ryzyka i wyzwania
 
@@ -205,7 +194,7 @@ Na potrzeby testów przyjęto założenie robocze:
 |----|-------|-----|---------|-----------|
 | TC-001 | Utworzenie zgłoszenia z poprawnymi danymi (test parametryczny dla różnych `serviceId`) zwraca HTTP 201 i nagłówek `Location` | Integracyjny | Pozytywna | P1 |
 | TC-002 | Nowo utworzone zgłoszenie ma status `new` lub `acknowledged` (status `rejected` traktowany jako błąd do wyjaśnienia) | Integracyjny | Pozytywna | P1 |
-| TC-003 | Próba tworzenia z `status != "new"` zwraca HTTP 400 i kod `VALIDATION_ERROR` | Integracyjny | Negatywna | P1 |
+| TC-003 | Próba tworzenia z `status != "new"` zwraca HTTP 400 i kod `VALIDATION_ERROR` (zrealizowane jako test parametryczny TC-013) | Integracyjny | Negatywna | P1 |
 | TC-004 | Brak wymaganego pola (`externalId`) zwraca HTTP 400 i kod `VALIDATION_ERROR` | Integracyjny | Negatywna | P2 |
 | TC-005 | Tworzenie z `serviceId` spoza zakresu 100001–100030 zwraca HTTP 404 `SERVICE_NOT_FOUND` | API Black-Box | Negatywna | P2 |
 | TC-012 | Tworzenie z `serviceId` spoza zakresu 100001–100030 zwraca błąd 4xx (test kontraktowy względem TASK) | API Black-Box | Negatywna | P2 |
@@ -249,12 +238,13 @@ Na potrzeby testów przyjęto założenie robocze:
 
 | ID | Tytuł | Typ | Ścieżka | Priorytet |
 |----|-------|-----|---------|-----------|
-| TC-040 | Tenant B nie widzi zgłoszeń Tenanta A na liście | Integracyjny | Negatywna | P1 |
-| TC-041 | Tenant B nie może pobrać szczegółów zgłoszenia Tenanta A (HTTP 404, nie 403) | Integracyjny | Negatywna | P1 |
-| TC-042 | Tenant B nie może zamknąć zgłoszenia Tenanta A (HTTP 404) | Integracyjny | Negatywna | P1 |
-| TC-043 | Tenant B nie może dodać notatki do zgłoszenia Tenanta A (HTTP 404) | Integracyjny | Negatywna | P1 |
-| TC-044 | Body odpowiedzi 404 dla zasobu innego tenanta nie zawiera danych tego zasobu | API Black-Box | Negatywna | P1 |
-| TC-045 | Trzeci tenant (gamma) jest izolowany od alpha i beta | API Black-Box | Pozytywna | P2 |
+| TC-040 | Tenant może pobrać szczegóły własnego zgłoszenia (HTTP 200) | API Black-Box | Pozytywna | P1 |
+| TC-041 | Tenant nie może pobrać szczegółów zgłoszenia innego tenanta (HTTP 404, kod `TROUBLE_TICKET_NOT_FOUND`) | API Black-Box | Negatywna | P1 |
+| TC-042 | Listowanie zwraca zgłoszenie utworzone przez bieżącego tenanta | API Black-Box | Pozytywna | P1 |
+| TC-043 | Listowanie nie zwraca zgłoszeń innego tenanta | API Black-Box | Negatywna | P1 |
+| TC-044 | Tenant B nie może zamknąć zgłoszenia Tenanta A (HTTP 404) | Integracyjny | Negatywna | P1 |
+| TC-045 | Tenant B nie może dodać notatki do zgłoszenia Tenanta A (HTTP 404) | Integracyjny | Negatywna | P1 |
+| TC-046 | Trzeci tenant (gamma) jest izolowany od alpha i beta | API Black-Box | Pozytywna | P2 |
 
 ### 5.6 Obszar: Autoryzacja i bezpieczeństwo (A7)
 

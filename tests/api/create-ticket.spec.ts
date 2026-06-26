@@ -207,6 +207,41 @@ for (const outOfRangeServiceId of outOfRangeServiceIds) {
   );
 }
 
+  const invalidCreateStatuses = ['acknowledged', 'inProgress', 'resolved', 'rejected', 'closed'];
+  for (const invalidStatus of invalidCreateStatuses) {
+    test(
+      `TC-013: status='${invalidStatus}' przy tworzeniu ticketu zwraca VALIDATION_ERROR`,
+      async ({ request }) => {
+        await feature('Tworzenie zgłoszeń');
+        await story('Walidacja statusu przy tworzeniu');
+        await severity('critical');
+        await description(
+          'Przy tworzeniu ticketu klient nie powinien móc ustawić statusu innego niż dozwolony. ' +
+            'API powinno zwrócić błąd walidacji VALIDATION_ERROR.',
+        );
+
+        const response = await test.step(
+          `POST /troubleTicket ze statusem '${invalidStatus}'`,
+          async () =>
+            createTicket(request, 'alpha', {
+              externalId: `TC-013-${invalidStatus}-${randomUUID()}`,
+              serviceId: 100002,
+              description: 'TC-013: niepoprawny status przy tworzeniu',
+              status: invalidStatus,
+            }),
+        );
+
+        await test.step('Weryfikacja HTTP 4xx i kodu VALIDATION_ERROR', async () => {
+          expect(response.status()).toBeGreaterThanOrEqual(400);
+          expect(response.status()).toBeLessThan(500);
+
+          const body = await response.json();
+          expect(body.code).toBe('VALIDATION_ERROR');
+        });
+      },
+    );
+  }
+
   test(
     'TC-006: Brak tokenu autoryzacyjnego zwraca HTTP 401',
     async ({ request }) => {
