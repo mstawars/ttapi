@@ -50,12 +50,23 @@ jobs:
       API_BASE_URL: http://localhost:8080
 
     steps:
-      # ── Checkout ─────────────────────────────────────────────────────────────
-      - name: Checkout repository
+      # ── Checkout test repository ─────────────────────────────────────────────
+      - name: Checkout test repository (ttapi - this repo)
         uses: actions/checkout@v4
+        with:
+          path: ttapi-tests
+
+      # ── Checkout application repository (private) ────────────────────────────
+      - name: Checkout application repository (ttapi_app - private)
+        uses: actions/checkout@v4
+        with:
+          repository: mstawars/ttapi_app
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: ttapi-app
 
       # ── Build & start the full stack via Docker Compose ───────────────────────
       - name: Build and start services
+        working-directory: ttapi-app
         run: docker compose -f docker/docker-compose.yaml up -d --build --wait
         env:
           DB_USER: ${{ secrets.DB_USER }}
@@ -68,30 +79,30 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: tests/package-lock.json
+          cache-dependency-path: ttapi-tests/tests/package-lock.json
 
       - name: Install test dependencies
-        working-directory: tests
+        working-directory: ttapi-tests/tests
         run: npm ci
 
       - name: Install Playwright browsers
-        working-directory: tests
+        working-directory: ttapi-tests/tests
         run: npx playwright install --with-deps chromium
 
       # ── API tests ─────────────────────────────────────────────────────────────
       - name: Run API tests
-        working-directory: tests
+        working-directory: ttapi-tests/tests
         run: npx playwright test --project=api
 
       # ── E2E tests ─────────────────────────────────────────────────────────────
       - name: Run E2E tests
-        working-directory: tests
+        working-directory: ttapi-tests/tests
         run: npx playwright test --project=e2e
 
       # ── Generate Allure report ────────────────────────────────────────────────
       - name: Generate Allure report
         if: always()
-        working-directory: tests
+        working-directory: ttapi-tests/tests
         run: |
           npm install -g allure-commandline --quiet
           allure generate allure-results --clean -o allure-report
@@ -102,7 +113,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: allure-results
-          path: tests/allure-results/
+          path: ttapi-tests/tests/allure-results/
           retention-days: 7
 
       # ── Upload report as Pages artifact ───────────────────────────────────────
@@ -110,11 +121,12 @@ jobs:
         if: always()
         uses: actions/upload-pages-artifact@v3
         with:
-          path: tests/allure-report/
+          path: ttapi-tests/tests/allure-report/
 
       # ── Tear down ─────────────────────────────────────────────────────────────
       - name: Stop services
         if: always()
+        working-directory: ttapi-app
         run: docker compose -f docker/docker-compose.yaml down -v
 
   # ── Deploy raport na GitHub Pages ─────────────────────────────────────────────
