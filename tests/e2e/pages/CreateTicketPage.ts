@@ -1,7 +1,8 @@
 import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
+import { getFrontendUrl } from '../../helpers/test-env';
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const FRONTEND_URL = getFrontendUrl();
 
 export interface NewTicketData {
   externalId: string;

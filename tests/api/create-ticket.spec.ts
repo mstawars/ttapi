@@ -16,10 +16,11 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { feature, story, description, severity } from "allure-js-commons";
+import { feature, story, description, severity, attachment } from "allure-js-commons";
 import { randomUUID } from 'node:crypto';
 import { createTicket } from '../helpers/ticket-api';
 import { createDbConnection } from '../helpers/dbConnection';
+import { attachApiResponse } from '../helpers/api-response';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -57,16 +58,21 @@ test.describe('Tworzenie zgłoszenia - POST /api/v1/troubleTicket', () => {
           );
 
           await test.step('Weryfikacja statusu HTTP i struktury odpowiedzi', async () => {
-            expect(response.status()).toBe(201);
+            expect(response.status(), 'POST nowego ticketu z poprawnymi danymi powinien zwrócić HTTP 201').toBe(201);
 
-            const body = await response.json();
-            expect(body).toMatchObject({
+            const body = await attachApiResponse<{
+              externalId: string;
+              serviceId: number;
+              status: string;
+              notes?: unknown[];
+            }>(`API Response (TC-001 [${user}/${serviceId}])`, response);
+            expect(body, 'Odpowiedź powinna zawierać externalId i serviceId').toMatchObject({
               externalId,
               serviceId,
             });
             // Status 'rejected' jest traktowany jako bug i ma powodować fail testu.
-            expect(['new', 'acknowledged']).toContain(body.status);
-            expect(Array.isArray(body.notes)).toBe(true);
+            expect(['new', 'acknowledged'], 'Nowy ticket powinien mieć status new lub acknowledged').toContain(body.status);
+            expect(Array.isArray(body.notes), 'Ticket powinien mieć pole notes').toBe(true);
           });
 
           await test.step('Weryfikacja nagłówka Location', async () => {
@@ -102,22 +108,24 @@ test.describe('Tworzenie zgłoszenia - POST /api/v1/troubleTicket', () => {
 
       const first = await test.step('Pierwsze żądanie POST - oczekiwane HTTP 201', async () => {
         const r = await createTicket(request, 'alpha', payload);
-        expect(r.status()).toBe(201);
+        expect(r.status(), 'Pierwsze żądanie POST powinno zwrócić HTTP 201').toBe(201);
         return r;
       });
 
       const second = await test.step('Drugie żądanie POST z tym samym externalId - oczekiwane HTTP 200', async () => {
         const r = await createTicket(request, 'alpha', payload);
-        expect(r.status()).toBe(200);
+        expect(r.status(), 'Drugie żądanie POST z tym samym externalId powinno zwrócić HTTP 200 (idempotencja)').toBe(200);
         return r;
       });
 
       await test.step('Oba żądania zwracają ten sam zasób', async () => {
         const firstBody = await first.json();
         const secondBody = await second.json();
-        expect(secondBody.externalId).toBe(firstBody.externalId);
-        expect(secondBody.serviceId).toBe(firstBody.serviceId);
-        expect(secondBody.status).toBe(firstBody.status);
+        await attachment('API Response (TC-010 - first POST)', JSON.stringify({ status: 201, body: firstBody }, null, 2), 'application/json');
+        await attachment('API Response (TC-010 - second POST)', JSON.stringify({ status: 200, body: secondBody }, null, 2), 'application/json');
+        expect(secondBody.externalId, 'Obie odpowiedzi powinny zawierać ten sam externalId').toBe(firstBody.externalId);
+        expect(secondBody.serviceId, 'Obie odpowiedzi powinny zawierać ten sam serviceId').toBe(firstBody.serviceId);
+        expect(secondBody.status, 'Obie odpowiedzi powinny zwrócić ten sam status').toBe(firstBody.status);
       });
 
       await test.step('Weryfikacja w bazie danych - tylko jeden rekord', async () => {
@@ -148,32 +156,24 @@ test.describe('Tworzenie zgłoszenia - POST /api/v1/troubleTicket', () => {
       status: 'new',
     };
 
-    //  1. Tworzenie zasobu dla alpha
-    await test.step(
-      'POST jako alpha - oczekiwane HTTP 201',
-      async () => {
-        const r = await createTicket(request, 'alpha', payload);
-        expect(r.status()).toBe(201);
-        return r;
-      },
-    );
+    await test.step('POST jako alpha - oczekiwane HTTP 201', async () => {
+      const response = await createTicket(request, 'alpha', payload);
+      expect(response.status(), 'Pierwsza próba POST dla alpha powinna zwrócić HTTP 201').toBe(201);
+      await attachApiResponse('API Response (TC-011 - alpha POST)', response);
+    });
 
-    //  2. Ten sam externalId dla beta - nowy zasób
-    await test.step(
-      'POST jako beta z tym samym externalId - oczekiwane HTTP 201',
-      async () => {
-        const r = await createTicket(request, 'beta', payload);
-        expect(r.status()).toBe(201);
-        return r;
-      },
-    );
+    await test.step('POST jako beta z tym samym externalId - oczekiwane HTTP 201', async () => {
+      const response = await createTicket(request, 'beta', payload);
+      expect(response.status(), 'Druga próba POST dla beta z tym samym externalId powinna zwrócić HTTP 201 (multi-tenant)').toBe(201);
+      await attachApiResponse('API Response (TC-011 - beta POST)', response);
+    });
 
     await test.step('Weryfikacja w bazie danych - dwa tickety z tym samym externalId i różnym tenantId', async () => {
       const rows = await db.findTicketsByExternalId(externalId);
 
-      expect(rows).toHaveLength(2);
-      expect(rows.map((row) => row.tenant_id).sort()).toEqual(['alpha', 'beta']);
-      expect(rows.every((row) => row.external_id === externalId)).toBe(true);
+      expect(rows, 'Powinno być 2 tickety z tym samym externalId').toHaveLength(2);
+      expect(rows.map((row) => row.tenant_id).sort(), 'Tickety powinny należeć do alpha i beta').toEqual(['alpha', 'beta']);
+      expect(rows.every((row) => row.external_id === externalId), 'Wszystkie tickety powinny mieć ten sam externalId').toBe(true);
     });
   },
 );
@@ -199,8 +199,10 @@ for (const outOfRangeServiceId of outOfRangeServiceIds) {
             status: 'new',
           });
 
-          expect(response.status()).toBeGreaterThanOrEqual(400);
-          expect(response.status()).toBeLessThan(500);
+          expect(response.status(), `POST z serviceId=${outOfRangeServiceId} powinno zwrócić HTTP 4xx`).toBeGreaterThanOrEqual(400);
+          expect(response.status(), 'Status nie powinien być 5xx').toBeLessThan(500);
+          
+          await attachApiResponse(`API Response (TC-012 [${outOfRangeServiceId}])`, response);
         });
       
     },
@@ -232,11 +234,11 @@ for (const outOfRangeServiceId of outOfRangeServiceIds) {
         );
 
         await test.step('Weryfikacja HTTP 4xx i kodu VALIDATION_ERROR', async () => {
-          expect(response.status()).toBeGreaterThanOrEqual(400);
-          expect(response.status()).toBeLessThan(500);
+          expect(response.status(), `POST ze statusem '${invalidStatus}' powinno zwrócić HTTP 4xx`).toBeGreaterThanOrEqual(400);
+          expect(response.status(), 'Status nie powinien być 5xx').toBeLessThan(500);
 
-          const body = await response.json();
-          expect(body.code).toBe('VALIDATION_ERROR');
+          const body = await attachApiResponse<{ code: string }>(`API Response (TC-013 [${invalidStatus}])`, response);
+          expect(body.code, `Kod błędu dla statusu '${invalidStatus}' powinien być VALIDATION_ERROR`).toBe('VALIDATION_ERROR');
         });
       },
     );
@@ -264,7 +266,8 @@ for (const outOfRangeServiceId of outOfRangeServiceIds) {
       );
 
       await test.step('Weryfikacja statusu HTTP 401', async () => {
-        expect(response.status()).toBe(401);
+        expect(response.status(), 'Żądanie bez tokenu powinno zwrócić HTTP 401').toBe(401);
+        await attachApiResponse('API Response (TC-006)', response);
       });
     },
   );

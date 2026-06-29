@@ -27,9 +27,10 @@
  */
 
 import { test, expect, FIXTURES } from '../helpers/fixtures';
-import { feature, story, description, severity } from "allure-js-commons";
+import { feature, story, description, severity, attachment } from "allure-js-commons";
 import { randomUUID } from 'node:crypto';
 import { addNote } from '../helpers/ticket-api';
+import { attachApiResponse } from '../helpers/api-response';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -53,11 +54,11 @@ test.describe('Dodawanie notatki – POST /api/v1/troubleTicket/{id}/note', () =
       );
 
       await test.step('Weryfikacja HTTP 201 i treści notatki', async () => {
-        expect(response.status()).toBe(201);
-        const body = await response.json();
-        expect(body.text).toBe(noteText);
-        expect(typeof body.id).toBe('string');
-        expect(typeof body.date).toBe('string');
+        expect(response.status(), 'Dodanie notatki do acknowledged ticketu powinno zwrocic HTTP 201').toBe(201);
+        const body = await attachApiResponse<{ text: string; id: string; date: string }>('API Response (TC-031)', response);
+        expect(body.text, 'Odpowiedz po dodaniu notatki powinna zawierac przeslany tekst notatki').toBe(noteText);
+        expect(typeof body.id, 'Dodana notatka powinna miec identyfikator typu string').toBe('string');
+        expect(typeof body.date, 'Dodana notatka powinna miec date typu string').toBe('string');
       });
     },
   );
@@ -84,9 +85,9 @@ test.describe('Dodawanie notatki – POST /api/v1/troubleTicket/{id}/note', () =
       );
 
       await test.step('Weryfikacja HTTP 201 i treści notatki', async () => {
-        expect(response.status()).toBe(201);
-        const body = await response.json();
-        expect(body.text).toBe(noteText);
+        expect(response.status(), 'Dodanie notatki do inProgress ticketu powinno zwrocic HTTP 201').toBe(201);
+        const body = await attachApiResponse<{ text: string }>('API Response (TC-032)', response);
+        expect(body.text, 'Odpowiedz po dodaniu notatki do inProgress ticketu powinna zawierac przeslany tekst').toBe(noteText);
       });
     },
   );
@@ -111,9 +112,9 @@ test.describe('Dodawanie notatki – POST /api/v1/troubleTicket/{id}/note', () =
       );
 
       await test.step('Weryfikacja błędu HTTP 400 i kodu NOTE_ADDITION_NOT_ALLOWED', async () => {
-        expect(response.status()).toBe(400);
-        const body = await response.json();
-        expect(body.code).toBe('NOTE_ADDITION_NOT_ALLOWED');
+        expect(response.status(), 'Dodanie notatki do closed ticketu powinno zwrocic HTTP 400').toBe(400);
+        const body = await attachApiResponse<{ code: string }>('API Response (TC-033)', response);
+        expect(body.code, 'Kod bledu dla notatki dodawanej do closed ticketu powinien byc NOTE_ADDITION_NOT_ALLOWED').toBe('NOTE_ADDITION_NOT_ALLOWED');
       });
     },
   );
@@ -138,9 +139,9 @@ test.describe('Dodawanie notatki – POST /api/v1/troubleTicket/{id}/note', () =
       );
 
       await test.step('Weryfikacja błędu HTTP 400 i kodu NOTE_ADDITION_NOT_ALLOWED', async () => {
-        expect(response.status()).toBe(400);
-        const body = await response.json();
-        expect(body.code).toBe('NOTE_ADDITION_NOT_ALLOWED');
+        expect(response.status(), 'Dodanie notatki do resolved ticketu powinna zwrocic HTTP 400').toBe(400);
+        const body = await attachApiResponse<{ code: string }>('API Response (TC-034)', response);
+        expect(body.code, 'Kod bledu dla notatki do resolved powinna byc NOTE_ADDITION_NOT_ALLOWED').toBe('NOTE_ADDITION_NOT_ALLOWED');
       });
     },
   );
@@ -164,9 +165,33 @@ test.describe('Dodawanie notatki – POST /api/v1/troubleTicket/{id}/note', () =
       );
 
       await test.step('Weryfikacja błędu HTTP 400 i kodu NOTE_ADDITION_NOT_ALLOWED', async () => {
-        expect(response.status()).toBe(400);
-        const body = await response.json();
-        expect(body.code).toBe('NOTE_ADDITION_NOT_ALLOWED');
+        expect(response.status(), 'Dodanie notatki do rejected ticketu powinna zwrocic HTTP 400').toBe(400);
+        const body = await attachApiResponse<{ code: string }>('API Response (TC-035)', response);
+        expect(body.code, 'Kod bledu dla notatki do rejected powinna byc NOTE_ADDITION_NOT_ALLOWED').toBe('NOTE_ADDITION_NOT_ALLOWED');
+      });
+    },
+  );
+
+  test(
+    'TC-045: Tenant beta nie może dodać notatki do zgłoszenia tenant alpha → HTTP 404',
+    async ({ request, acknowledgedTicket }) => {
+      await feature('Notatki');
+      await story('Izolacja tenantów');
+      await severity('critical');
+      await description(
+        'Tenant beta nie może dodać notatki do zgłoszenia należącego do tenant alpha. ' +
+          'API powinno zwrócić HTTP 404 oraz kod TROUBLE_TICKET_NOT_FOUND.',
+      );
+
+      const response = await test.step(
+        `POST /troubleTicket/${acknowledgedTicket}/note jako beta`,
+        async () => addNote(request, 'beta', acknowledgedTicket, 'TC-045: cross-tenant note attempt'),
+      );
+
+      await test.step('Weryfikacja HTTP 404 i kodu TROUBLE_TICKET_NOT_FOUND', async () => {
+        expect(response.status(), 'Tenant beta nie moze dodac notatki do ticketu alpha, spodziewamy sie HTTP 404').toBe(404);
+        const body = await attachApiResponse<{ code: string }>('API Response (TC-045)', response);
+        expect(body.code, 'Kod bledu dla cross-tenant note powinien byc TROUBLE_TICKET_NOT_FOUND').toBe('TROUBLE_TICKET_NOT_FOUND');
       });
     },
   );

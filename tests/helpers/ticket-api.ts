@@ -14,8 +14,9 @@
 
 import type { APIRequestContext, APIResponse } from '@playwright/test';
 import { bearerHeader } from './auth';
+import { getApiV1BaseUrl } from './test-env';
 
-const API = 'http://localhost:8080/api/v1';
+const API = getApiV1BaseUrl();
 
 export interface CreateTicketPayload {
   externalId: string;

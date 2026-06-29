@@ -10,9 +10,10 @@
  */
 
 import { test, expect } from '../helpers/fixtures';
-import { feature, story, description, severity } from 'allure-js-commons';
+import { feature, story, description, severity, attachment } from 'allure-js-commons';
 import { randomUUID } from 'node:crypto';
 import { createTicket, getTicket, listTickets } from '../helpers/ticket-api';
+import { attachApiResponse } from '../helpers/api-response';
 
 function extractExternalIds(body: unknown): string[] {
   if (Array.isArray(body)) {
@@ -59,9 +60,9 @@ test.describe('Pobieranie i listowanie zgłoszeń - GET /api/v1/troubleTicket', 
       );
 
       await test.step('Weryfikacja HTTP 200 i externalId', async () => {
-        expect(response.status()).toBe(200);
-        const body = await response.json();
-        expect(body.externalId).toBe(acknowledgedTicket);
+        expect(response.status(), 'GET szczegółów ticketu powinien zwrócić HTTP 200').toBe(200);
+        const body = await attachApiResponse<{ externalId: string }>('API Response (TC-040)', response);
+        expect(body.externalId, 'Odpowiedź powinna zawierać prawidłowy externalId').toBe(acknowledgedTicket);
       });
     },
   );
@@ -94,9 +95,9 @@ test.describe('Pobieranie i listowanie zgłoszeń - GET /api/v1/troubleTicket', 
       );
 
       await test.step('Weryfikacja braku dostępu: HTTP 404 + TROUBLE_TICKET_NOT_FOUND', async () => {
-        expect(response.status()).toBe(404);
-        const body = await response.json();
-        expect(body.code).toBe('TROUBLE_TICKET_NOT_FOUND');
+        expect(response.status(), 'Tenant alpha nie powinien mieć dostępu do ticketu beta, oczekiwane HTTP 404').toBe(404);
+        const body = await attachApiResponse<{ code: string }>('API Response (TC-041)', response);
+        expect(body.code, 'Kod błędu dla braku dostępu powinien być TROUBLE_TICKET_NOT_FOUND').toBe('TROUBLE_TICKET_NOT_FOUND');
       });
     },
   );
@@ -128,10 +129,10 @@ test.describe('Pobieranie i listowanie zgłoszeń - GET /api/v1/troubleTicket', 
       );
 
       await test.step('Weryfikacja HTTP 200 i obecności externalId na liście', async () => {
-        expect(response.status()).toBe(200);
-        const body = await response.json();
+        expect(response.status(), 'GET listę ticketów powinien zwrócić HTTP 200').toBe(200);
+        const body = await attachApiResponse<unknown>('API Response (TC-042)', response);
         const externalIds = extractExternalIds(body);
-        expect(externalIds).toContain(externalId);
+        expect(externalIds, 'Utworzony ticket powinien być widoczny na liście alpha').toContain(externalId);
       });
     },
   );
@@ -163,10 +164,10 @@ test.describe('Pobieranie i listowanie zgłoszeń - GET /api/v1/troubleTicket', 
       );
 
       await test.step('Weryfikacja HTTP 200 i braku obcego externalId na liście', async () => {
-        expect(response.status()).toBe(200);
-        const body = await response.json();
+        expect(response.status(), 'GET listę ticketów powinien zwrócić HTTP 200').toBe(200);
+        const body = await attachApiResponse<unknown>('API Response (TC-043)', response);
         const externalIds = extractExternalIds(body);
-        expect(externalIds).not.toContain(betaExternalId);
+        expect(externalIds, 'Ticket beta nie powinien być widoczny na liście alpha (izolacja tenantów)').not.toContain(betaExternalId);
       });
     },
   );

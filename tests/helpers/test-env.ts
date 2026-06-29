@@ -1,3 +1,8 @@
+import path from 'node:path';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+
 export interface DatabaseConfig {
   host: string;
   port: number;
@@ -20,6 +25,10 @@ function getEnv(name: string, fallback?: string): string {
     throw new Error(`Brak wymaganej zmiennej środowiskowej ${name}`);
   }
   return value;
+}
+
+function getNormalizedUrl(name: string, fallback: string): string {
+  return getEnv(name, fallback).trim().replace(/\/+$/, '');
 }
 
 function getEnvNumber(name: string, fallback: number): number {
@@ -63,6 +72,18 @@ export function getKeycloakConfig(): KeycloakConfig {
     clientId: getEnv('KC_CLIENT_ID', 'ttapi-client'),
     defaultPassword: getEnv('KC_DEFAULT_PASSWORD', 'Test1234!'),
   };
+}
+
+export function getApiBaseUrl(): string {
+  return getNormalizedUrl('API_BASE_URL', 'http://localhost:8080');
+}
+
+export function getApiV1BaseUrl(): string {
+  return `${getApiBaseUrl()}/api/v1`;
+}
+
+export function getFrontendUrl(): string {
+  return getNormalizedUrl('FRONTEND_URL', 'http://localhost:3000');
 }
 
 export interface TenantCredentials {

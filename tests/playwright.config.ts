@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import { getApiBaseUrl, getFrontendUrl } from './helpers/test-env';
+
+const apiBaseUrl = getApiBaseUrl();
+const frontendUrl = getFrontendUrl();
 
 /**
  * Playwright configuration for Trouble Ticket API automated tests.
@@ -57,7 +61,7 @@ export default defineConfig({
       testMatch: 'api/**/*.spec.ts',
       use: {
         /* baseURL used when calling request.get/post with relative paths */
-        baseURL: 'http://localhost:8080',
+        baseURL: apiBaseUrl,
         extraHTTPHeaders: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
@@ -73,7 +77,7 @@ export default defineConfig({
       testMatch: 'e2e/**/*.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'http://localhost:3000',
+        baseURL: frontendUrl,
         /* Capture trace on first retry for debugging */
         trace: 'on-first-retry',
         /* Screenshot on failure */
