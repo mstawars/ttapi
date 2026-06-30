@@ -89,13 +89,25 @@ Najwazniejsze zmienne:
 `global-setup.ts` seeduje dedykowane tickety `FIXTURE-*` bezposrednio do PostgreSQL.
 Wykorzystywane sa m.in. w testach `close`, `add-note` i E2E.
 
+## Aplikacja testowana (repozytorium prywatne)
+
+Kod testow znajduje sie w tym repozytorium, natomiast sama aplikacja (backend + frontend + docker compose)
+jest uruchamiana z oddzielnego, prywatnego repozytorium: `mstawars/ttapi_app`.
+
+W CI/CD workflow pobiera oba repozytoria:
+- to repozytorium z testami,
+- prywatne repozytorium aplikacji,
+
+a nastepnie uruchamia srodowisko aplikacji przez Docker Compose i odpala testy Playwright.
+
 ## Uruchamianie
 
 Zakladamy uruchomione srodowisko aplikacji (docker compose z backendem, keycloak, db, frontendem).
 
 ```bash
 cd tests
-cp .env.example .env
+# utworz plik .env i uzupelnij wymagane zmienne lub dodaj plik przeslany wraz z linkiem do tego repozytorium
+touch .env
 npm ci
 npx playwright install --with-deps chromium
 
@@ -108,6 +120,22 @@ npm run test:api
 # tylko E2E
 npm run test:e2e
 ```
+
+Plik `.env` jest wymagany przy uruchamianiu lokalnym. Powinien zawierac wszystkie zmienne opisane
+w sekcji „Konfiguracja srodowiska”.
+
+## CI/CD i publikacja raportu
+
+Testy moga byc uruchamiane automatycznie w GitHub Actions (push / pull request / workflow_dispatch).
+Pipeline:
+- checkoutuje testy z tego repozytorium,
+- checkoutuje aplikacje z prywatnego repozytorium `mstawars/ttapi_app`,
+- uruchamia srodowisko aplikacji,
+- wykonuje testy API i E2E,
+- generuje raport Allure i publikuje go na GitHub Pages.
+
+Publiczny link do raportu:
+https://mstawars.github.io/ttapi/
 
 ## Raport Allure
 
