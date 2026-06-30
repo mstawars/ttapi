@@ -7,13 +7,13 @@ on:
     branches: '*'
   workflow_dispatch:
 
-# Pozwala deployer-owi zapisywać do GitHub Pages
+# Allow deployments to write to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Tylko jeden aktywny deploy na raz; kolejny run anuluje poprzedni w trakcie
+# Keep only one active deployment per ref; cancel any in-progress run
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -53,14 +53,14 @@ jobs:
     steps:
       # ── Checkout test repository ─────────────────────────────────────────────
       - name: Checkout test repository (ttapi - this repo)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: ttapi-tests
 
       # ── Checkout application repository (private) ────────────────────────────
       - name: Checkout application repository (ttapi_app - private)
         id: checkout_app
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: mstawars/ttapi_app
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
@@ -79,7 +79,7 @@ jobs:
 
       # ── Node.js ───────────────────────────────────────────────────────────────
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -95,12 +95,14 @@ jobs:
 
       # ── API tests ─────────────────────────────────────────────────────────────
       - name: Run API tests
+        id: api_tests
         working-directory: ttapi-tests/tests
         run: npx playwright test --project=api
         continue-on-error: true
 
       # ── E2E tests ─────────────────────────────────────────────────────────────
       - name: Run E2E tests
+        id: e2e_tests
         working-directory: ttapi-tests/tests
         run: npx playwright test --project=e2e
         continue-on-error: true
@@ -116,7 +118,7 @@ jobs:
       # ── Upload raw results for debugging ──────────────────────────────────────
       - name: Upload Allure results artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: allure-results
           path: ttapi-tests/tests/allure-results/
@@ -125,7 +127,7 @@ jobs:
       # ── Upload report as Pages artifact ───────────────────────────────────────
       - name: Upload Allure report for GitHub Pages
         if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ttapi-tests/tests/allure-report/
 
@@ -135,7 +137,25 @@ jobs:
         working-directory: ttapi-app
         run: docker compose -f docker/docker-compose.yaml down -v
 
-  # ── Deploy raport na GitHub Pages ─────────────────────────────────────────────
+      # ── Warning-only gate: always publish report, never fail job here ───────
+      - name: Warn when tests failed
+        if: always()
+        run: |
+          echo "API tests outcome: ${{ steps.api_tests.outcome }}"
+          echo "E2E tests outcome: ${{ steps.e2e_tests.outcome }}"
+
+          if [ "${{ steps.api_tests.outcome }}" = "failure" ] || [ "${{ steps.e2e_tests.outcome }}" = "failure" ]; then
+            echo "::warning::One or more test projects failed (API=${{ steps.api_tests.outcome }}, E2E=${{ steps.e2e_tests.outcome }})."
+            echo "### ⚠️ Test warning" >> "$GITHUB_STEP_SUMMARY"
+            echo "- API: ${{ steps.api_tests.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- E2E: ${{ steps.e2e_tests.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ✅ Test status" >> "$GITHUB_STEP_SUMMARY"
+            echo "- API: ${{ steps.api_tests.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- E2E: ${{ steps.e2e_tests.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ── Deploy report to GitHub Pages ─────────────────────────────────────────────
   deploy-report:
     name: Deploy Allure report to GitHub Pages
     runs-on: ubuntu-latest
@@ -149,4 +169,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

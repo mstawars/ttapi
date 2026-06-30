@@ -20,10 +20,6 @@
 import type { FullConfig } from '@playwright/test';
 import { createDbConnection } from './helpers/dbConnection';
 
-const POSTGRES_CONTAINER = 'ttapi-postgres';
-const POSTGRES_USER = 'postgres';
-const POSTGRES_DB = 'rest_db';
-
 /** Fixture IDs – muszą być zgodne z FIXTURES w helpers/fixtures.ts */
 export const FIXTURE_IDS = {
   CLOSE_INPROGRESS: 'FIXTURE-CLOSE-INPROGRESS',

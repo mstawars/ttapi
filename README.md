@@ -5,8 +5,8 @@ Zestaw testow automatycznych dla Trouble Ticket:
 - E2E UI (przegladarka)
 
 Testy uruchamiane sa przez Playwright w 2 projektach:
-- `api` - request context (bez przegladarki)
-- `e2e` - Desktop Chrome
+- `api` 
+- `e2e` 
 
 ## Struktura
 
