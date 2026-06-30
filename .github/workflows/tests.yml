@@ -36,6 +36,7 @@ jobs:
       KC_BASE_URL: http://localhost:8180
       KC_REALM: ttapi
       KC_CLIENT_ID: ttapi-client
+      KC_DEFAULT_PASSWORD: ${{ secrets.KC_DEFAULT_PASSWORD }}
 
       # ── Tenant credentials ────────────────────────────────────────────────────
       TENANT_ALPHA_USERNAME: ${{ secrets.TENANT_ALPHA_USERNAME }}
