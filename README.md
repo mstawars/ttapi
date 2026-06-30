@@ -68,7 +68,13 @@ Logowanie E2E jest realizowane w `beforeEach` i uzywa danych tenantow z `.env`.
 
 ## Konfiguracja srodowiska
 
-Testy czytaja konfiguracje z `.env` (przez `helpers/test-env.ts`).
+Testy czytaja konfiguracje z `helpers/test-env.ts` bez fallbackow.
+Wartosci musza byc dostarczone przez plik `.env` (lokalnie) albo zmienne CI/CD (np. GitLab Variables).
+
+Ladowanie plikow lokalnych:
+- domyslnie: `.env`
+- przy ustawionym `APP_ENV`: najpierw `.env.<APP_ENV>`, potem `.env` jako uzupelnienie
+- zmienne przekazane przez system/CI maja priorytet i nie sa nadpisywane przez dotenv
 
 Najwazniejsze zmienne:
 - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL`
@@ -89,7 +95,9 @@ Zakladamy uruchomione srodowisko aplikacji (docker compose z backendem, keycloak
 
 ```bash
 cd tests
+cp .env.example .env
 npm ci
+npx playwright install --with-deps chromium
 
 # wszystkie testy (api, potem e2e)
 npm test
@@ -97,7 +105,7 @@ npm test
 # tylko API
 npm run test:api
 
-# tylko E2E (UI mode)
+# tylko E2E
 npm run test:e2e
 ```
 
@@ -111,5 +119,5 @@ npm run report:open
 
 ## Uwagi
 
-- Czesci testow API sa celowo "bug-detection" i moga failowac, jesli backend nie spelnia zalozen z TASK.md.
+- Czesc testow API failuje, poniewaz logika zmiany statusu po utworzeniu na acknowledged i rejected wymaga wyjasnienia, przyjeto zgodnie z trescia przekazaną w pliku TASK.md  "Po utworzeniu system może automatycznie zmienić status na `acknowledged`" ze po utworzeniu ticket powinien miec status acknowledged, nie rejected.
 - Testy uzywaja unikalnych `externalId` (UUID), aby ograniczyc kolizje danych.

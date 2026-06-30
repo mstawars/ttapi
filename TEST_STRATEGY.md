@@ -3,7 +3,7 @@
 **Dokument:** Strategia Testów (Część 1)  
 **Wersja:** 1.1  
 **Data:** 2026-06-26  
-**Autor:** Starszy Tester Automatyzacji  
+**Autor:** Magdalena Stawarska-Niewiarowska 
 **Aplikacja:** Trouble Ticket API v1.0.0
 
 ---
@@ -105,21 +105,20 @@ Podejście jest **test-in-the-middle** — największy wkład testów integracyj
 #### 3.2.1 Testy jednostkowe (Unit Tests)
 **Technologia:** JUnit 5, Mockito  
 **Zakres:**
-- `TicketStatusResolver` / `ParityTicketStatusResolver` — czysty automat stanów, testowany bez kontenera
-- `TenantExtractor` — ekstrakcja claima z mockowanego JWT
-- Logika walidacji w mapper-ach / serwisach
+- Kluczowe reguły biznesowe (np. zmiany statusów)
+- Odczyt tenant_id z tokenu
+- Podstawowa walidacja danych wejściowych
 
-**Dlaczego:** Szybkie (< 1 ms/test), deterministyczne, natychmiastowy feedback przy zmianach w automacie stanów.
+Najszybszy sposób weryfikacji reguł biznesowych. Błąd wykryty na tym poziomie jest tani w naprawie - nie angażuje bazy danych ani infrastruktury.
 
-#### 3.2.2 Testy integracyjne Spring (Integration Tests z MockMvc)
+#### 3.2.2 Testy Integracyjne Spring (Integration Tests z MockMvc)
 **Technologia:** `@SpringBootTest`, `@AutoConfigureMockMvc`, Testcontainers (PostgreSQL), `spring-security-test`  
 **Zakres:**
-- Pełne scenariusze CRUD przez MockMvc z prawdziwą bazą danych
-- Izolacja tenantów (JWT z różnymi `tenant_id`)
-- Reguły przejść statusów end-to-end przez warstwę kontrolera
-- Walidacja struktury odpowiedzi (status HTTP, nagłówki, body JSON)
+- Najważniejsze scenariusze CRUD z bazą danych
+- Izolacja tenantów
+- Reguły statusów i poprawne odpowiedzi API
 
-**Dlaczego:** Testcontainers eliminuje konieczność mocków bazy danych, zapewniając wierność środowiska. MockMvc jest szybsze od pełnego stosu HTTP.
+Weryfikuje współpracę warstwy API, logiki biznesowej i bazy danych bez uruchamiania pełnego środowiska Docker. 
 
 #### 3.2.3 Testy API Black-Box 
 **Technologia:**  Playwright (TypeScript)  
@@ -131,17 +130,17 @@ Podejście jest **test-in-the-middle** — największy wkład testów integracyj
 - Negatywne ścieżki (4xx) wymagające rzeczywistego stanu serwera
 - Asercje bezpośrednio na bazie danych, np. weryfikacja liczby rekordów dla `externalId` i tenantów
 
-**Dlaczego:** Jedyne testy weryfikujące działanie całego stosu (Keycloak + Spring Boot + PostgreSQL) razem.
+Jedyne testy weryfikujące działanie całego stosu (Keycloak + Spring Boot + PostgreSQL) razem.
 
 #### 3.2.4 Testy E2E interfejsu użytkownika
 **Technologia:** Playwright (TypeScript)  
 **Zakres:**
 - Krytyczne user journeys: logowanie → tworzenie zgłoszenia → dodanie notatki → zamknięcie
-- Weryfikacja wyświetlania statusów (`StatusChip`)
+- Weryfikacja wyświetlania statusów
 - Obsługa błędów walidacji formularza (pola obowiązkowe, błędne serviceId)
 - Responsywność i dostępność (a11y smoke test)
 
-**Dlaczego:** Playwright oferuje pełną kontrolę przeglądarki, auto-waiting i wsparcie dla TypeScript (spójność z kodem frontendowym). Zakres jest celowo wąski — E2E testy są drogie w utrzymaniu.
+Playwright oferuje pełną kontrolę przeglądarki, auto-waiting i wsparcie dla TypeScript (spójność z kodem frontendowym). Zakres jest celowo wąski — E2E testy są drogie w utrzymaniu.
 
 
 ## 4. Ryzyka i wyzwania
@@ -188,51 +187,61 @@ Na potrzeby testów przyjęto założenie robocze:
 
 ## 5. Propozycja scenariuszy testowych
 
+Poniższa lista opisuje scenariusze docelowe dla pełnego pokrycia strategii.
+W dostarczonej implementacji przykładowej część scenariuszy UI jest realizowana
+wspólnie w jednym przepływie E2E oraz dwóch scenariuszach uzupełniających,
+zgodnie z zakresem zadania (minimum 2 scenariusze z różnych obszarów).
+
 ### 5.1 Obszar: Tworzenie zgłoszeń (A1)
 
 | ID | Tytuł | Typ | Ścieżka | Priorytet |
 |----|-------|-----|---------|-----------|
-| TC-001 | Utworzenie zgłoszenia z poprawnymi danymi (test parametryczny dla różnych `serviceId`) zwraca HTTP 201 i nagłówek `Location` | Integracyjny | Pozytywna | P1 |
-| TC-002 | Nowo utworzone zgłoszenie ma status `new` lub `acknowledged` (status `rejected` traktowany jako błąd do wyjaśnienia) | Integracyjny | Pozytywna | P1 |
-| TC-003 | Próba tworzenia z `status != "new"` zwraca HTTP 400 i kod `VALIDATION_ERROR` (zrealizowane jako test parametryczny TC-013) | Integracyjny | Negatywna | P1 |
-| TC-004 | Brak wymaganego pola (`externalId`) zwraca HTTP 400 i kod `VALIDATION_ERROR` | Integracyjny | Negatywna | P2 |
+| TC-001 | Utworzenie zgłoszenia z poprawnymi danymi (test parametryczny dla różnych `serviceId`) zwraca HTTP 201 i nagłówek `Location` | API | Pozytywna | P1 |
+| TC-002 | Nowo utworzone zgłoszenie ma status `new` lub `acknowledged` (status `rejected` traktowany jako błąd do wyjaśnienia) | API | Pozytywna | P1 |
+| TC-003 | Próba tworzenia z `status != "new"` zwraca HTTP 400 i kod `VALIDATION_ERROR` (zrealizowane jako test parametryczny TC-013) | API | Negatywna | P1 |
+| TC-004 | Brak wymaganego pola (`externalId`) zwraca HTTP 400 i kod `VALIDATION_ERROR` | API | Negatywna | P2 |
+| TC-007 | Brak wymaganego pola `serviceId` przy tworzeniu zwraca HTTP 400 `VALIDATION_ERROR` | API | Negatywna | P1 |
+| TC-008 | Brak wymaganego pola `description` przy tworzeniu zwraca HTTP 400 `VALIDATION_ERROR` | API | Negatywna | P2 |
+| TC-009 | Brak wymaganego pola `status` przy tworzeniu zwraca HTTP 400 `VALIDATION_ERROR` | API | Negatywna | P2 |
 | TC-005 | Tworzenie z `serviceId` spoza zakresu 100001–100030 zwraca HTTP 404 `SERVICE_NOT_FOUND` | API Black-Box | Negatywna | P2 |
 | TC-012 | Tworzenie z `serviceId` spoza zakresu 100001–100030 zwraca błąd 4xx (test kontraktowy względem TASK) | API Black-Box | Negatywna | P2 |
-| TC-006 | Brak tokenu przy tworzeniu zwraca HTTP 401 | Integracyjny | Negatywna | P1 |
+| TC-006 | Brak tokenu przy tworzeniu zwraca HTTP 401 | API | Negatywna | P1 |
 
 ### 5.2 Obszar: Idempotencja (A9)
 
 | ID | Tytuł | Typ | Ścieżka | Priorytet |
 |----|-------|-----|---------|-----------|
-| TC-010 | Powtórne żądanie z tym samym `(tenantId, externalId)` zwraca HTTP 200 z istniejącym zasobem | Integracyjny | Pozytywna | P1 |
-| TC-011 | Ten sam `externalId` dla różnych tenantów tworzy dwa niezależne zgłoszenia (HTTP 201 dla obu) | Integracyjny | Pozytywna | P1 |
-| TC-012 | Współbieżne żądania tworzenia z tym samym `externalId` nie tworzą duplikatu | Integracyjny | Edge case | P2 |
+| TC-010 | Powtórne żądanie z tym samym `(tenantId, externalId)` zwraca HTTP 200 z istniejącym zasobem | API | Pozytywna | P1 |
+| TC-011 | Ten sam `externalId` dla różnych tenantów tworzy dwa niezależne zgłoszenia (HTTP 201 dla obu) | API | Pozytywna | P1 |
+| TC-014 | Współbieżne żądania tworzenia z tym samym `externalId` nie tworzą duplikatu | API | Edge case | P2 |
 
 ### 5.3 Obszar: Zamykanie zgłoszeń — przejścia statusów (A4)
 
 | ID | Tytuł | Typ | Ścieżka | Priorytet |
 |----|-------|-----|---------|-----------|
-| TC-020 | Zamknięcie zgłoszenia w statusie `acknowledged` zwraca HTTP 200 ze statusem `closed` | Integracyjny | Pozytywna | P1 |
-| TC-021 | Zamknięcie zgłoszenia w statusie `inProgress` zwraca HTTP 200 ze statusem `closed` | Integracyjny | Pozytywna | P1 |
-| TC-022 | Po zamknięciu do zgłoszenia jest automatycznie dodana notatka systemowa | Integracyjny | Pozytywna | P2 |
-| TC-023 | Próba zamknięcia zgłoszenia w statusie `new` zwraca HTTP 400 `STATUS_TRANSITION_ERROR` | Integracyjny | Negatywna | P1 |
-| TC-024 | Próba zamknięcia zgłoszenia w statusie `resolved` zwraca HTTP 400 `STATUS_TRANSITION_ERROR` | Integracyjny | Negatywna | P1 |
-| TC-025 | Próba zamknięcia zgłoszenia w statusie `rejected` zwraca HTTP 400 `STATUS_TRANSITION_ERROR` | Integracyjny | Negatywna | P1 |
-| TC-026 | Próba zamknięcia już zamkniętego zgłoszenia (`closed`) zwraca HTTP 400 `STATUS_TRANSITION_ERROR` | Integracyjny | Negatywna | P1 |
-| TC-027 | Próba zmiany statusu na inny niż `closed` w PATCH zwraca HTTP 400 `VALIDATION_ERROR` | Integracyjny | Negatywna | P2 |
+| TC-020 | Zamknięcie zgłoszenia w statusie `acknowledged` zwraca HTTP 200 ze statusem `closed` | API | Pozytywna | P1 |
+| TC-021 | Zamknięcie zgłoszenia w statusie `inProgress` zwraca HTTP 200 ze statusem `closed` | API | Pozytywna | P1 |
+| TC-022 | Po zamknięciu do zgłoszenia jest automatycznie dodana notatka systemowa | API | Pozytywna | P2 |
+| TC-023 | Próba zamknięcia zgłoszenia w statusie `new` zwraca HTTP 400 `STATUS_TRANSITION_ERROR` | API | Negatywna | P1 |
+| TC-024 | Próba zamknięcia zgłoszenia w statusie `resolved` zwraca HTTP 400 `STATUS_TRANSITION_ERROR` | API | Negatywna | P1 |
+| TC-025 | Próba zamknięcia zgłoszenia w statusie `rejected` zwraca HTTP 400 `STATUS_TRANSITION_ERROR` | API | Negatywna | P1 |
+| TC-026 | Próba zamknięcia już zamkniętego zgłoszenia (`closed`) zwraca HTTP 400 `STATUS_TRANSITION_ERROR` | API | Negatywna | P1 |
+| TC-027 | Próba zmiany statusu na inny niż `closed` w PATCH zwraca HTTP 400 `VALIDATION_ERROR` | API | Negatywna | P2 |
+| TC-028 | PATCH bez wymaganego pola `status` zwraca HTTP 400 `VALIDATION_ERROR` | API | Negatywna | P1 |
 
 ### 5.4 Obszar: Notatki (A5)
 
 | ID | Tytuł | Typ | Ścieżka | Priorytet |
 |----|-------|-----|---------|-----------|
-| TC-030 | Dodanie notatki do zgłoszenia w statusie `new` zwraca HTTP 201 | Integracyjny | Pozytywna | P2 |
-| TC-031 | Dodanie notatki do zgłoszenia w statusie `acknowledged` zwraca HTTP 201 | Integracyjny | Pozytywna | P2 |
-| TC-032 | Dodanie notatki do zgłoszenia w statusie `inProgress` zwraca HTTP 201 | Integracyjny | Pozytywna | P2 |
-| TC-033 | Próba dodania notatki do zgłoszenia `closed` zwraca HTTP 400 `NOTE_ADDITION_NOT_ALLOWED` | Integracyjny | Negatywna | P1 |
-| TC-034 | Próba dodania notatki do zgłoszenia `resolved` zwraca HTTP 400 `NOTE_ADDITION_NOT_ALLOWED` | Integracyjny | Negatywna | P1 |
-| TC-035 | Próba dodania notatki do zgłoszenia `rejected` zwraca HTTP 400 `NOTE_ADDITION_NOT_ALLOWED` | Integracyjny | Negatywna | P1 |
-| TC-036 | Dodana notatka jest widoczna w szczegółach zgłoszenia (GET) | Integracyjny | Pozytywna | P2 |
-| TC-037 | Nota z pustym `text` zwraca HTTP 400 `VALIDATION_ERROR` | Integracyjny | Negatywna | P3 |
+| TC-030 | Dodanie notatki do zgłoszenia w statusie `new` zwraca HTTP 201 | API | Pozytywna | P2 |
+| TC-031 | Dodanie notatki do zgłoszenia w statusie `acknowledged` zwraca HTTP 201 | API | Pozytywna | P2 |
+| TC-032 | Dodanie notatki do zgłoszenia w statusie `inProgress` zwraca HTTP 201 | API | Pozytywna | P2 |
+| TC-033 | Próba dodania notatki do zgłoszenia `closed` zwraca HTTP 400 `NOTE_ADDITION_NOT_ALLOWED` | API | Negatywna | P1 |
+| TC-034 | Próba dodania notatki do zgłoszenia `resolved` zwraca HTTP 400 `NOTE_ADDITION_NOT_ALLOWED` | API | Negatywna | P1 |
+| TC-035 | Próba dodania notatki do zgłoszenia `rejected` zwraca HTTP 400 `NOTE_ADDITION_NOT_ALLOWED` | API | Negatywna | P1 |
+| TC-036 | Dodana notatka jest widoczna w szczegółach zgłoszenia (GET) | API | Pozytywna | P2 |
+| TC-037 | Nota z pustym `text` zwraca HTTP 400 `VALIDATION_ERROR` | API | Negatywna | P3 |
+| TC-038 | Brak wymaganego pola `text` w żądaniu dodania notatki zwraca HTTP 400 `VALIDATION_ERROR` | API | Negatywna | P2 |
 
 ### 5.5 Obszar: Multi-tenancy i izolacja danych (A6)
 
@@ -242,53 +251,75 @@ Na potrzeby testów przyjęto założenie robocze:
 | TC-041 | Tenant nie może pobrać szczegółów zgłoszenia innego tenanta (HTTP 404, kod `TROUBLE_TICKET_NOT_FOUND`) | API Black-Box | Negatywna | P1 |
 | TC-042 | Listowanie zwraca zgłoszenie utworzone przez bieżącego tenanta | API Black-Box | Pozytywna | P1 |
 | TC-043 | Listowanie nie zwraca zgłoszeń innego tenanta | API Black-Box | Negatywna | P1 |
-| TC-044 | Tenant B nie może zamknąć zgłoszenia Tenanta A (HTTP 404) | Integracyjny | Negatywna | P1 |
-| TC-045 | Tenant B nie może dodać notatki do zgłoszenia Tenanta A (HTTP 404) | Integracyjny | Negatywna | P1 |
+| TC-044 | Tenant B nie może zamknąć zgłoszenia Tenanta A (HTTP 404) | API | Negatywna | P1 |
+| TC-045 | Tenant B nie może dodać notatki do zgłoszenia Tenanta A (HTTP 404) | API | Negatywna | P1 |
 | TC-046 | Trzeci tenant (gamma) jest izolowany od alpha i beta | API Black-Box | Pozytywna | P2 |
 
 ### 5.6 Obszar: Autoryzacja i bezpieczeństwo (A7)
 
 | ID | Tytuł | Typ | Ścieżka | Priorytet |
 |----|-------|-----|---------|-----------|
-| TC-050 | Żądanie bez tokenu zwraca HTTP 401 na każdym endpoincie | Integracyjny | Negatywna | P1 |
-| TC-051 | Żądanie z nieprawidłowym tokenem (zmodyfikowana sygnatura) zwraca HTTP 401 | API Black-Box | Negatywna | P1 |
+| TC-050 | Żądanie bez tokenu zwraca HTTP 401 na każdym endpoincie | API | Negatywna | P1 |
+| TC-051 | Żądanie z nieprawidłowym tokenem (zmodyfikowana sygnatura) zwraca HTTP 401 | API | Negatywna | P1 |
 | TC-052 | Żądanie z wygasłym tokenem zwraca HTTP 401 | API Black-Box | Negatywna | P1 |
-| TC-053 | Token bez claimu `tenant_id` — weryfikacja zachowania aplikacji | API Black-Box | Edge case | P2 |
-| TC-054 | Payload zawierający SQL Injection w `description` jest bezpiecznie obsłużony | Integracyjny | Negatywna | P1 |
+| TC-053 | Token bez claimu `tenant_id` — weryfikacja zachowania aplikacji | API | Edge case | P2 |
 
 ### 5.7 Obszar: Walidacja i kody błędów (A8, A13)
 
 | ID | Tytuł | Typ | Ścieżka | Priorytet |
 |----|-------|-----|---------|-----------|
-| TC-060 | Każda odpowiedź błędu zawiera pola `code` i `requestId` | Integracyjny | Pozytywna | P2 |
-| TC-061 | Żądanie z nieprawidłowym Content-Type zwraca HTTP 415 lub 400 | Integracyjny | Negatywna | P3 |
-| TC-062 | Puste body żądania POST zwraca HTTP 400 `VALIDATION_ERROR` | Integracyjny | Negatywna | P2 |
-| TC-063 | Bardzo długi string w `description` (> 10 000 znaków) — weryfikacja obsługi | Integracyjny | Edge case | P3 |
+| TC-060 | Każda odpowiedź błędu zawiera pola `code` i `requestId` | API | Pozytywna | P2 |
+| TC-061 | Żądanie z nieprawidłowym Content-Type zwraca HTTP 415 lub 400 | API | Negatywna | P3 |
+| TC-062 | Puste body żądania POST zwraca HTTP 400 `VALIDATION_ERROR` | API | Negatywna | P2 |
+| TC-063 | Bardzo długi string w `description` (> 10 000 znaków) — weryfikacja obsługi | API | Edge case | P3 |
 
 ### 5.8 Obszar: UI — lista zgłoszeń (A10)
 
+W implementacji przykładowej scenariusze UI są częściowo agregowane, aby
+utrzymać zwięzły zakres kodu przy zachowaniu reprezentatywnego pokrycia.
+
 | ID | Tytuł | Typ | Ścieżka | Priorytet |
 |----|-------|-----|---------|-----------|
-| TC-070 | Po zalogowaniu lista zgłoszeń wyświetla się i zawiera elementy z odpowiednim statusem | E2E (Playwright) | Pozytywna | P2 |
-| TC-071 | `StatusChip` wyświetla poprawny kolor dla każdego statusu | E2E (Playwright) | Pozytywna | P3 |
-| TC-072 | Kliknięcie zgłoszenia na liście przenosi do widoku szczegółów | E2E (Playwright) | Pozytywna | P2 |
+| TC-070 | Po zalogowaniu lista zgłoszeń wyświetla się i umożliwia rozpoczęcie tworzenia zgłoszenia | E2E UI | Pozytywna | P2 |
+| TC-071 | `StatusChip` wyświetla poprawny kolor dla każdego statusu | E2E UI | Pozytywna | P3 |
+| TC-072 | Kliknięcie zgłoszenia na liście przenosi do widoku szczegółów | E2E UI | Pozytywna | P2 |
 
 ### 5.9 Obszar: UI — formularz tworzenia (A11)
 
 | ID | Tytuł | Typ | Ścieżka | Priorytet |
 |----|-------|-----|---------|-----------|
-| TC-080 | Formularz z poprawnymi danymi tworzy zgłoszenie i wyświetla potwierdzenie | E2E (Playwright) | Pozytywna | P2 |
-| TC-081 | Próba wysłania pustego formularza wyświetla komunikaty walidacyjne | E2E (Playwright) | Negatywna | P2 |
-| TC-082 | Po pomyślnym utworzeniu użytkownik jest przekierowany do listy lub szczegółów | E2E (Playwright) | Pozytywna | P3 |
+| TC-080 | Formularz z poprawnymi danymi tworzy zgłoszenie i otwiera widok nowego zgłoszenia | E2E UI | Pozytywna | P2 |
+| TC-081 | Próba wysłania pustego formularza wyświetla komunikaty walidacyjne | E2E UI | Negatywna | P2 |
+| TC-082 | Po pomyślnym utworzeniu użytkownik jest przekierowany do listy lub szczegółów | E2E UI | Pozytywna | P3 |
 
 ### 5.10 Obszar: UI — szczegóły i notatki (A12)
 
 | ID | Tytuł | Typ | Ścieżka | Priorytet |
 |----|-------|-----|---------|-----------|
-| TC-090 | Widok szczegółów wyświetla wszystkie pola i historię notatek | E2E (Playwright) | Pozytywna | P2 |
-| TC-091 | Przycisk „Zamknij" jest widoczny dla statusów `acknowledged` i `inProgress` | E2E (Playwright) | Pozytywna | P2 |
-| TC-092 | Przycisk „Zamknij" jest niewidoczny lub nieaktywny dla statusów `closed`, `rejected`, `resolved` | E2E (Playwright) | Negatywna | P2 |
-| TC-093 | Dodanie notatki przez UI wyświetla ją natychmiast na liście notatek | E2E (Playwright) | Pozytywna | P2 |
+| TC-090 | Widok szczegółów wyświetla status i umożliwia pracę z notatkami dla dozwolonych statusów | E2E UI | Pozytywna | P2 |
+| TC-091 | Przycisk „Zamknij" jest widoczny dla statusów `acknowledged` i `inProgress` | E2E UI | Pozytywna | P2 |
+| TC-092 | Przycisk „Zamknij" jest niewidoczny lub nieaktywny dla statusów `closed`, `rejected`, `resolved` | E2E UI | Negatywna | P2 |
+| TC-093 | Dodanie notatki przez UI wyświetla ją natychmiast na liście notatek | E2E UI | Pozytywna | P2 |
+
+Mapowanie na dostarczoną implementację przykładową:
+- Scenariusz `Logowanie → Tworzenie zgłoszenia → Notatka → Zamknięcie` pokrywa łącznie elementy TC-070, TC-080, TC-082, TC-090, TC-091 i TC-093.
+- Scenariusz `Dodanie notatki do zgłoszenia w statusie inProgress` pokrywa TC-090 i TC-093 dla statusu `inProgress`.
+- Scenariusz `Brak możliwości dodania notatki do zamkniętego zgłoszenia` pokrywa negatywną ścieżkę UI dla ograniczeń notatek i częściowo odpowiada TC-092.
+
+### 5.11 Traceability matrix (wymagania → testy)
+
+| Wymaganie biznesowe / kontraktowe | Powiązane obszary | Pokrywające scenariusze testowe |
+|-----------------------------------|-------------------|----------------------------------|
+| Tenant scope pochodzi wyłącznie z JWT claim `tenant_id` | A6, A7 | TC-040, TC-041, TC-042, TC-043, TC-044, TC-045, TC-046, TC-053 |
+| Zamknięcie dozwolone tylko z `acknowledged` lub `inProgress` | A4 | TC-020, TC-021, TC-023, TC-024, TC-025, TC-026, TC-027, TC-028 |
+| Notatki dozwolone tylko w `new`, `acknowledged`, `inProgress` | A5 | TC-030, TC-031, TC-032, TC-033, TC-034, TC-035, TC-037, TC-038 |
+| Idempotencja pary `(tenantId, externalId)` | A1, A9 | TC-010, TC-011, TC-014 |
+| Dostęp do zasobu innego tenanta zwraca HTTP 404 (nie 403) | A6 | TC-041, TC-043, TC-044, TC-045 |
+| Brak tokenu lub błędny token zwraca HTTP 401 | A7 | TC-006, TC-050, TC-051, TC-052 |
+| Walidacja wymaganych pól w payloadzie tworzenia | A1, A8 | TC-004, TC-007, TC-008, TC-009, TC-062 |
+| Walidacja wymaganego pola `status` przy zamykaniu | A4, A8 | TC-028 |
+| Walidacja wymaganego pola `text` przy dodawaniu notatki | A5, A8 | TC-038 |
+| Spójność kontraktu błędów (`code`, `requestId`) | A13 | TC-060 |
 
 ---
 
@@ -298,7 +329,7 @@ Na potrzeby testów przyjęto założenie robocze:
 |----------------|-------------|--------------|
 | Unit (Java) | JUnit 5, Mockito | Standard w ekosystemie Spring; spójny z kodem produkcyjnym |
 | Integracyjne (Java) | Spring Boot Test, MockMvc, Testcontainers, `spring-security-test` | Istniejąca infrastruktura w projekcie (`TroubleTicketIntegrationTest.java`) |
-| API Black-Box | Playwright + TypeScript |+ Playwright oferuje prosty i czytelny API client z wbudowanymi mechanizmami testowymi (fixtures, retries, steps) |
+| API Black-Box | Playwright + TypeScript | Playwright oferuje prosty i czytelny API client z wbudowanymi mechanizmami testowymi (fixtures, retries, steps) |
 | E2E UI | Playwright (TypeScript) | Spójność z frontendem TS; stabilne API, auto-waiting, trace viewer |
 | Kontrakt OpenAPI | `atlassian-swagger-request-validator` lub `openapi4j` | Automatyczna walidacja response względem `trouble-ticket-api.yaml` |
 | CI | GitHub Actions / GitLab CI | Uruchomienie testów integracyjnych z Testcontainers i testów E2E z Docker Compose |
@@ -316,7 +347,7 @@ Na potrzeby testów przyjęto założenie robocze:
 | Flakiness E2E | < 2% przy 10 uruchomieniach z rzędu |
 
 **Kryteria blokujące wydanie (P1):**
-- Żaden test z priorytetem P1 nie może być `FAIL`
+- Żaden test z priorytetem P1 nie może być `FAILED`
 - Brak niezamkniętych defektów kategorii Blocker lub Critical
 - Raport pokrycia musi być opublikowany i zaakceptowany
 

@@ -53,9 +53,7 @@ export default defineConfig({
   ],
 
   projects: [
-    /* ─────────────────────────────────────────
-     * API tests – no browser required
-     * ───────────────────────────────────────── */
+    
     {
       name: 'api',
       testMatch: 'api/**/*.spec.ts',
@@ -69,9 +67,6 @@ export default defineConfig({
       },
     },
 
-    /* ─────────────────────────────────────────
-     * E2E tests – full browser journey
-     * ───────────────────────────────────────── */
     {
       name: 'e2e',
       testMatch: 'e2e/**/*.spec.ts',

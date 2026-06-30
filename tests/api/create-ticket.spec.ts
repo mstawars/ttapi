@@ -21,6 +21,7 @@ import { randomUUID } from 'node:crypto';
 import { createTicket } from '../helpers/ticket-api';
 import { createDbConnection } from '../helpers/dbConnection';
 import { attachApiResponse } from '../helpers/api-response';
+import { getApiV1BaseUrl } from '../helpers/test-env';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -255,7 +256,7 @@ for (const outOfRangeServiceId of outOfRangeServiceIds) {
       );
 
       const response = await test.step('POST bez nagłówka Authorization', async () =>
-        request.post('http://localhost:8080/api/v1/troubleTicket', {
+        request.post(`${getApiV1BaseUrl()}/troubleTicket`, {
           data: {
             externalId: `TC-006-${randomUUID()}`,
             serviceId: 100002,

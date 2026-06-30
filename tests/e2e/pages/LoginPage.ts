@@ -15,7 +15,7 @@ export class LoginPage {
 
   /**
    * Loguje użytkownika danego tenanta na podstawie konfiguracji tenantów.
-   * Credentials są pobierane z test-env.ts, które mogą pochodzić z .env lub defaults.
+    * Credentials są pobierane z test-env.ts, które czyta .env lub zmienne środowiskowe CI.
    *
    * @param tenantId - ID tenanta (np. 'alpha', 'beta', 'gamma')
    */
