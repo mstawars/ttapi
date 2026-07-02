@@ -15,10 +15,12 @@ tests/
 ├── package.json
 ├── tsconfig.json
 ├── playwright.config.ts
+├── eslint.config.cjs
 ├── global-setup.ts
 ├── .env
 ├── .gitignore
 ├── helpers/
+│   ├── api-response.ts
 │   ├── auth.ts
 │   ├── dbConnection.ts
 │   ├── fixtures.ts
@@ -30,11 +32,15 @@ tests/
 │   ├── add-note.spec.ts
 │   └── get-ticket.spec.ts
 └── e2e/
-        ├── create-add-note-close-ticket.spec.ts
-        └── pages/
+    ├── create-add-note-close-ticket.spec.ts
+    └── pages/
+        ├── CreateTicketPage.ts
+        ├── LoginPage.ts
+        ├── TicketDetailPage.ts
+        └── TicketListPage.ts
 ```
 
-## Co testujemy (API)
+## Zakres testów (API)
 
 - `create-ticket.spec.ts`
     - tworzenie ticketu (201)
@@ -57,7 +63,7 @@ tests/
     - GET szczegolow cudzego ticketu (404, `TROUBLE_TICKET_NOT_FOUND`)
     - GET listy zawiera tylko zasoby bieżącego tenanta
 
-## Co testujemy (E2E)
+## Zakres testów (E2E)
 
 `create-add-note-close-ticket.spec.ts`:
 - scenariusz tworzenia i zamkniecia ticketu
@@ -66,7 +72,7 @@ tests/
 
 Logowanie E2E jest realizowane w `beforeEach` i uzywa danych tenantow z `.env`.
 
-## Konfiguracja srodowiska
+## Konfiguracja środowiska
 
 Testy czytaja konfiguracje z `helpers/test-env.ts` bez fallbackow.
 Wartosci musza byc dostarczone przez plik `.env` (lokalnie) albo zmienne CI/CD (np. GitLab Variables).
