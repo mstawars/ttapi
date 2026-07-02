@@ -1,5 +1,5 @@
-import { defineConfig, devices } from '@playwright/test';
-import { getApiBaseUrl, getFrontendUrl } from './helpers/test-env';
+import { defineConfig, devices } from "@playwright/test";
+import { getApiBaseUrl, getFrontendUrl } from "./helpers/test-env";
 
 const apiBaseUrl = getApiBaseUrl();
 const frontendUrl = getFrontendUrl();
@@ -21,10 +21,10 @@ const frontendUrl = getFrontendUrl();
  */
 export default defineConfig({
   /* Discover test files relative to this config */
-  testDir: '.',
+  testDir: ".",
 
   /* Global setup – seed fixture tickets before any test runs */
-  globalSetup: './global-setup.ts',
+  globalSetup: "./global-setup.ts",
 
   /* Sequential execution – tests share pre-seeded DB state */
   fullyParallel: false,
@@ -41,44 +41,43 @@ export default defineConfig({
 
   /* Reporters: Allure (primary) + list (console) */
   reporter: [
-    ['list'],
+    ["list"],
     [
-      'allure-playwright',
+      "allure-playwright",
       {
         detail: true,
-        outputFolder: 'allure-results',
+        outputFolder: "allure-results",
         suiteTitle: false,
       },
     ],
   ],
 
   projects: [
-    
     {
-      name: 'api',
-      testMatch: 'api/**/*.spec.ts',
+      name: "api",
+      testMatch: "api/**/*.spec.ts",
       use: {
         /* baseURL used when calling request.get/post with relative paths */
         baseURL: apiBaseUrl,
         extraHTTPHeaders: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
+          Accept: "application/json",
+          "Content-Type": "application/json",
         },
       },
     },
 
     {
-      name: 'e2e',
-      testMatch: 'e2e/**/*.spec.ts',
+      name: "e2e",
+      testMatch: "e2e/**/*.spec.ts",
       use: {
-        ...devices['Desktop Chrome'],
+        ...devices["Desktop Chrome"],
         baseURL: frontendUrl,
         /* Capture trace on first retry for debugging */
-        trace: 'on-first-retry',
+        trace: "on-first-retry",
         /* Screenshot on failure */
-        screenshot: 'only-on-failure',
+        screenshot: "only-on-failure",
         /* Video on failure */
-        video: 'on-first-retry',
+        video: "on-first-retry",
         /* Viewport */
         viewport: { width: 1280, height: 800 },
       },

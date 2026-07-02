@@ -1,9 +1,15 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from "@playwright/test";
 
 export class TicketListPage {
-  constructor(private readonly page: Page) {}
+  readonly newTicketButton: Locator;
+
+  constructor(private readonly page: Page) {
+    this.newTicketButton = page.getByRole("button", {
+      name: "Nowe zgłoszenie",
+    });
+  }
 
   async clickNewTicket(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Nowe zgłoszenie' }).click();
+    await this.newTicketButton.click();
   }
 }

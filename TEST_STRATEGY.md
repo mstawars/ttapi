@@ -17,18 +17,18 @@ System składa się z czterech warstw, z których każda wymaga pokrycia testami
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  Frontend (React SPA)                                    │
-│  — formularz tworzenia, lista, szczegóły, zamykanie,    │
+│  — formularz tworzenia, lista, szczegóły, zamykanie,     │
 │    dodawanie notatek                                     │
 └────────────────────────┬─────────────────────────────────┘
                          │ HTTP / JSON
 ┌────────────────────────▼─────────────────────────────────┐
 │  REST API (Spring Boot 4.0.5 / Java 21)                  │
 │  — TroubleTicketController, TroubleTicketNoteController  │
-│  — GlobalExceptionHandler, SecurityConfig               │
+│  — GlobalExceptionHandler, SecurityConfig                │
 │  — TroubleTicketService, TicketStatusResolver            │
 └──────────┬─────────────────────────┬─────────────────────┘
-           │ OAuth2/OIDC JWT          │ JPA / JDBC
-┌──────────▼──────────┐   ┌──────────▼──────────────────┐
+           │ OAuth2/OIDC JWT         │ JPA / JDBC
+┌──────────▼──────────┐   ┌──────────▼───────────────────┐
 │  Keycloak (OIDC)    │   │  PostgreSQL 18               │
 │  — realm ttapi      │   │  — trouble_ticket schema     │
 │  — tenant_id claim  │   │  — Liquibase migrations      │
@@ -38,7 +38,7 @@ System składa się z czterech warstw, z których każda wymaga pokrycia testami
 ### 1.2 Obszary funkcjonalne
 
 | ID | Obszar | Komponenty | Złożoność |
-|----|--------|-----------|-----------|
+|----|--------|------------|-----------|
 | A1 | **Tworzenie zgłoszeń** | `POST /troubleTicket`, `TroubleTicketService.create()` | Wysoka |
 | A2 | **Listowanie zgłoszeń** | `GET /troubleTicket` | Niska |
 | A3 | **Szczegóły zgłoszenia** | `GET /troubleTicket/{id}` | Niska |
@@ -148,7 +148,7 @@ Playwright oferuje pełną kontrolę przeglądarki, auto-waiting i wsparcie dla 
 ### 4.1 Ryzyka techniczne
 
 | ID | Ryzyko | Prawdopodobieństwo | Wpływ | Mitigacja |
-|----|--------|-------------------|-------|-----------|
+|----|--------|--------------------|-------|-----------|
 | R1 | **Luki w izolacji tenantów** — błąd w `TenantExtractor` lub zapytaniu JPA może ujawnić dane innego tenanta | Średnie | Krytyczny | Dedykowane testy izolacji (cross-tenant GET/PATCH/POST) jako testy blokujące CI |
 | R2 | **Niespójny automat stanów** — nowe przejście dodane bez aktualizacji reguł w `TicketStatusResolver` | Niskie | Wysoki | Parametryczne testy jednostkowe pokrywające wszystkie kombinacje statusów |
 | R3 | **Idempotencja w scenariuszach race-condition** — równoległe żądania z tym samym `externalId` mogą tworzyć duplikaty | Niskie | Wysoki | Test współbieżny (2 wątki, ten sam payload) w testach integracyjnych |

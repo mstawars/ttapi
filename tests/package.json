@@ -8,6 +8,8 @@
     "test": "npm run report:clean && playwright test",
     "test:api": "npm run report:clean && playwright test --project=api",
     "test:e2e": "npm run report:clean && playwright test --project=e2e",
+    "prettier:fix": "prettier --write .",
+    "lint:fix": "eslint . --fix",
     "report:generate": "allure generate allure-results --clean -o allure-report",
     "report:open": "allure open allure-report",
     "report": "npm run report:generate && npm run report:open"
@@ -16,9 +18,13 @@
     "@playwright/test": "^1.52.0",
     "@types/node": "^26.0.1",
     "@types/pg": "^8.20.0",
+    "@typescript-eslint/eslint-plugin": "^8.62.1",
+    "@typescript-eslint/parser": "^8.62.1",
     "allure-playwright": "^3.2.0",
     "dotenv": "^17.4.2",
+    "eslint": "^10.6.0",
     "pg": "^8.22.0",
+    "prettier": "^3.9.4",
     "typescript": "^6.0.3"
   }
 }

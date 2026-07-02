@@ -1,11 +1,29 @@
-import type { Page } from '@playwright/test';
-import { expect } from '@playwright/test';
-import { getFrontendUrl } from '../../helpers/test-env';
+import type { Locator, Page } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { getFrontendUrl } from "../../helpers/test-env";
 
 const FRONTEND_URL = getFrontendUrl();
 
 export class TicketDetailPage {
-  constructor(private readonly page: Page) {}
+  readonly statusChipList: Locator;
+  readonly noteTextarea: Locator;
+  readonly addNoteButton: Locator;
+  readonly noteAddedConfirmation: Locator;
+  readonly closeTicketButton: Locator;
+  readonly ticketClosedConfirmation: Locator;
+
+  constructor(private readonly page: Page) {
+    this.statusChipList = page.locator(".MuiChip-label");
+    this.noteTextarea = page.getByLabel("Treść notatki");
+    this.addNoteButton = page.getByRole("button", { name: "Dodaj notatkę" });
+    this.noteAddedConfirmation = page.getByText("Notatka została dodana");
+    this.closeTicketButton = page.getByRole("button", {
+      name: "Zamknij zgłoszenie",
+    });
+    this.ticketClosedConfirmation = page.getByText(
+      "Zgłoszenie zostało zamknięte",
+    );
+  }
 
   async goto(externalId: string): Promise<void> {
     await this.page.goto(`${FRONTEND_URL}/tickets/${externalId}`);
@@ -13,14 +31,14 @@ export class TicketDetailPage {
   }
 
   async waitForTicket(externalId: string): Promise<void> {
-    await this.page.waitForURL(`${FRONTEND_URL}/tickets/${externalId}`, { timeout: 10_000 });
-    // Czekaj na jeden ze statusów zamiast na tekst externalID (bardziej niezawodne)
-    const statusChip = this.page.locator('.MuiChip-label').first();
-    await statusChip.waitFor({ timeout: 10_000 });
+    await this.page.waitForURL(`${FRONTEND_URL}/tickets/${externalId}`, {
+      timeout: 10_000,
+    });
+    await this.statusChipList.first().waitFor({ timeout: 10_000 });
   }
 
   statusChip(label: string) {
-    return this.page.locator('.MuiChip-label').filter({ hasText: label });
+    return this.statusChipList.filter({ hasText: label });
   }
 
   async expectStatus(label: string): Promise<void> {
@@ -28,11 +46,10 @@ export class TicketDetailPage {
   }
 
   async addNote(text: string): Promise<void> {
-    const textarea = this.page.getByLabel('Treść notatki');
-    await expect(textarea).toBeVisible();
-    await textarea.fill(text);
-    await this.page.getByRole('button', { name: 'Dodaj notatkę' }).click();
-    await expect(this.page.getByText('Notatka została dodana')).toBeVisible({ timeout: 5_000 });
+    await expect(this.noteTextarea).toBeVisible();
+    await this.noteTextarea.fill(text);
+    await this.addNoteButton.click();
+    await expect(this.noteAddedConfirmation).toBeVisible({ timeout: 5_000 });
   }
 
   async expectNoteVisible(text: string): Promise<void> {
@@ -40,26 +57,21 @@ export class TicketDetailPage {
   }
 
   async closeTicket(): Promise<void> {
-    const closeButton = this.page.getByRole('button', { name: 'Zamknij zgłoszenie' });
-    await expect(closeButton).toBeVisible();
-    await closeButton.click();
-    await expect(this.page.getByText('Zgłoszenie zostało zamknięte')).toBeVisible({ timeout: 5_000 });
+    await expect(this.closeTicketButton).toBeVisible();
+    await this.closeTicketButton.click();
+    await expect(this.ticketClosedConfirmation).toBeVisible({ timeout: 5_000 });
   }
 
   async expectClosedState(): Promise<void> {
-    await this.expectStatus('Zamknięte');
-    await expect(
-      this.page.getByRole('button', { name: 'Zamknij zgłoszenie' }),
-    ).not.toBeVisible();
+    await this.expectStatus("Zamknięte");
+    await expect(this.closeTicketButton).not.toBeVisible();
   }
 
   async expectNoteTextareaNotVisible(): Promise<void> {
-    const textarea = this.page.getByLabel('Treść notatki');
-    await expect(textarea).not.toBeVisible();
+    await expect(this.noteTextarea).not.toBeVisible();
   }
 
   async expectAddNoteButtonNotVisible(): Promise<void> {
-    const button = this.page.getByRole('button', { name: 'Dodaj notatkę' });
-    await expect(button).not.toBeVisible();
+    await expect(this.addNoteButton).not.toBeVisible();
   }
 }

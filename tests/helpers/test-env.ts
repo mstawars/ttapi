@@ -1,10 +1,10 @@
-import path from 'node:path';
-import fs from 'node:fs';
-import dotenv from 'dotenv';
+import path from "node:path";
+import fs from "node:fs";
+import dotenv from "dotenv";
 
-const envDir = path.resolve(__dirname, '..');
+const envDir = path.resolve(__dirname, "..");
 const appEnv = process.env.APP_ENV?.trim();
-const envCandidates = appEnv ? [`.env.${appEnv}`, '.env'] : ['.env'];
+const envCandidates = appEnv ? [`.env.${appEnv}`, ".env"] : [".env"];
 
 for (const fileName of envCandidates) {
   const envPath = path.join(envDir, fileName);
@@ -31,14 +31,14 @@ export interface KeycloakConfig {
 
 function getEnv(name: string): string {
   const value = process.env[name];
-  if (value === undefined || value === '') {
+  if (value === undefined || value === "") {
     throw new Error(`Brak wymaganej zmiennej środowiskowej ${name}`);
   }
   return value;
 }
 
 function getNormalizedUrl(name: string): string {
-  return getEnv(name).trim().replace(/\/+$/, '');
+  return getEnv(name).trim().replace(/\/+$/, "");
 }
 
 function getEnvNumber(name: string): number {
@@ -55,39 +55,41 @@ function getEnvNumber(name: string): number {
 function getEnvBoolean(name: string): boolean {
   const raw = getEnv(name).toLowerCase();
 
-  if (['1', 'true', 'yes', 'on'].includes(raw)) {
+  if (["1", "true", "yes", "on"].includes(raw)) {
     return true;
   }
 
-  if (['0', 'false', 'no', 'off'].includes(raw)) {
+  if (["0", "false", "no", "off"].includes(raw)) {
     return false;
   }
 
-  throw new Error(`Zmienna ${name} musi być wartością boolean (true/false/1/0/yes/no/on/off), otrzymano: ${raw}`);
+  throw new Error(
+    `Zmienna ${name} musi być wartością boolean (true/false/1/0/yes/no/on/off), otrzymano: ${raw}`,
+  );
 }
 
 export function getDatabaseConfig(): DatabaseConfig {
   return {
-    host: getEnv('DB_HOST'),
-    port: getEnvNumber('DB_PORT'),
-    user: getEnv('DB_USER'),
-    password: getEnv('DB_PASSWORD'),
-    database: getEnv('DB_NAME'),
-    ssl: getEnvBoolean('DB_SSL'),
+    host: getEnv("DB_HOST"),
+    port: getEnvNumber("DB_PORT"),
+    user: getEnv("DB_USER"),
+    password: getEnv("DB_PASSWORD"),
+    database: getEnv("DB_NAME"),
+    ssl: getEnvBoolean("DB_SSL"),
   };
 }
 
 export function getKeycloakConfig(): KeycloakConfig {
   return {
-    baseUrl: getEnv('KC_BASE_URL'),
-    realm: getEnv('KC_REALM'),
-    clientId: getEnv('KC_CLIENT_ID'),
-    defaultPassword: getEnv('KC_DEFAULT_PASSWORD'),
+    baseUrl: getEnv("KC_BASE_URL"),
+    realm: getEnv("KC_REALM"),
+    clientId: getEnv("KC_CLIENT_ID"),
+    defaultPassword: getEnv("KC_DEFAULT_PASSWORD"),
   };
 }
 
 export function getApiBaseUrl(): string {
-  return getNormalizedUrl('API_BASE_URL');
+  return getNormalizedUrl("API_BASE_URL");
 }
 
 export function getApiV1BaseUrl(): string {
@@ -95,7 +97,7 @@ export function getApiV1BaseUrl(): string {
 }
 
 export function getFrontendUrl(): string {
-  return getNormalizedUrl('FRONTEND_URL');
+  return getNormalizedUrl("FRONTEND_URL");
 }
 
 export interface TenantCredentials {
@@ -104,9 +106,11 @@ export interface TenantCredentials {
 }
 
 export function getTenantCredentials(tenantId: string): TenantCredentials {
-  const supportedTenants = ['alpha', 'beta', 'gamma'];
+  const supportedTenants = ["alpha", "beta", "gamma"];
   if (!supportedTenants.includes(tenantId)) {
-    throw new Error(`Nieznany tenant: ${tenantId}. Dostępni: alpha, beta, gamma`);
+    throw new Error(
+      `Nieznany tenant: ${tenantId}. Dostępni: alpha, beta, gamma`,
+    );
   }
 
   const tenantKey = tenantId.toUpperCase();

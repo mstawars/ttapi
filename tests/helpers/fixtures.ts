@@ -1,48 +1,39 @@
 /**
- * Playwright fixtures – fabryki danych testowych.
+ * Extends the base `test` with fixtures that create fresh tickets via API
+ * before each test. Every test gets its own isolated data.
  *
- * Rozszerza bazowy `test` o fixture'y tworzące świeże zgłoszenia przez API
- * przed każdym testem. Każdy test dostaje własne, izolowane dane.
+ * Available fixtures (injected as test function parameters):
+ *  acknowledgedTicket  - fresh ticket created via API for positive paths
+ *  closedTicket        - fresh acknowledged ticket, automatically closed before the test
  *
- * Dostępne fixture'y (wstrzykiwane jako parametry funkcji testowej):
- *  acknowledgedTicket  – świeże zgłoszenie tworzone przez API do ścieżek pozytywnych
- *  closedTicket        – świeże zgłoszenie acknowledged, automatycznie zamknięte przed testem
- *
- * Dla statusów niemożliwych do utworzenia przez API (inProgress, resolved)
- * używaj stałych z obiektu FIXTURES – tickety te są seedowane przez global-setup.ts.
- *
- * Użycie w pliku testowym:
- *   import { test, expect, FIXTURES } from '../helpers/fixtures';
- *
- *   test('mój test', async ({ request, acknowledgedTicket }) => {
- *     const resp = await request.patch(`${API}/troubleTicket/${acknowledgedTicket}`, ...);
- *   });
+ * For statuses that cannot be created via API (inProgress, resolved),
+ * use constants from FIXTURES - these tickets are seeded by global-setup.ts.
  */
 
-import { test as base, expect } from '@playwright/test';
-import { randomUUID } from 'node:crypto';
-import { FIXTURE_IDS } from '../global-setup';
-import { createTicket, closeTicket } from './ticket-api';
+import { test as base, expect } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import { FIXTURE_IDS } from "../global-setup";
+import { createTicket, closeTicket } from "./ticket-api";
 
 export { expect };
 
-// Re-eksportuj znane ID fixture'ów (z global-setup.ts) dla wygody w testach
+// Re-export known fixture IDs (from global-setup.ts) for convenience in tests
 export const FIXTURES = FIXTURE_IDS;
 
 /**
- * Tworzy zgłoszenie przez API i zwraca jego externalId.
- * Używane do tworzenia izolowanych danych per-test.
+ * Creates a ticket through the API and returns its externalId.
+ * Used to create isolated per-test data.
  */
 async function createTicketViaApi(
-  request: import('@playwright/test').APIRequestContext,
+  request: import("@playwright/test").APIRequestContext,
   serviceId: number,
 ): Promise<string> {
   const externalId = `TEST-${randomUUID()}`;
-  const response = await createTicket(request, 'alpha', {
+  const response = await createTicket(request, "alpha", {
     externalId,
     serviceId,
     description: `Fixture test ticket - ${externalId}`,
-    status: 'new',
+    status: "new",
   });
   if (response.status() > 299) {
     throw new Error(
@@ -53,20 +44,20 @@ async function createTicketViaApi(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Definicja fixture'ów
+// Fixture definitions
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface TestFixtures {
-  /** externalId świeżego zgłoszenia w statusie acknowledged */
+  /** externalId of a fresh ticket in acknowledged status */
   acknowledgedTicket: string;
-  /** externalId świeżego zgłoszenia w statusie closed */
+  /** externalId of a fresh ticket in closed status */
   closedTicket: string;
 }
 
 export const test = base.extend<TestFixtures>({
   /**
-    * Tworzy świeże zgłoszenie do testów ścieżek pozytywnych.
-   * Każde wywołanie generuje nowy unikalny externalId (UUID).
+   * Creates a fresh ticket for positive-path tests.
+   * Each invocation generates a new unique externalId (UUID).
    */
   acknowledgedTicket: async ({ request }, use) => {
     const externalId = await createTicketViaApi(request, 100002);
@@ -74,13 +65,13 @@ export const test = base.extend<TestFixtures>({
   },
 
   /**
-   * Tworzy zgłoszenie acknowledged, a następnie je zamyka.
-   * Po wykonaniu testu ticket jest w statusie closed.
+   * Creates an acknowledged ticket and then closes it.
+   * After setup, the ticket is in closed status.
    */
   closedTicket: async ({ request }, use) => {
     const externalId = await createTicketViaApi(request, 100002);
 
-    const closeResponse = await closeTicket(request, 'alpha', externalId);
+    const closeResponse = await closeTicket(request, "alpha", externalId);
     if (closeResponse.status() !== 200) {
       throw new Error(
         `Fixture closedTicket: nie udało się zamknąć ticketu ${externalId}: HTTP ${closeResponse.status()}`,

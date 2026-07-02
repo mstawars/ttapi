@@ -7,7 +7,7 @@
  * Environment:
  *   Configured through `tests/helpers/test-env.ts` so values can differ per environment.
  */
-import { getKeycloakConfig } from './test-env';
+import { getKeycloakConfig } from "./test-env";
 
 const { baseUrl, realm, clientId, defaultPassword } = getKeycloakConfig();
 
@@ -44,15 +44,15 @@ export async function getToken(
   }
 
   const body = new URLSearchParams({
-    grant_type: 'password',
+    grant_type: "password",
     client_id: clientId,
     username,
     password,
   });
 
   const response = await fetch(KC_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
   });
 

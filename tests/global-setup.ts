@@ -1,32 +1,32 @@
 /**
- * Global setup – uruchamiany raz przed wszystkimi testami.
+ * Global setup - runs once before all tests.
  *
- * Tworzy dedykowane fixture-tickety w statusach, których NIE MOŻNA ustawić
- * przez publiczne API (inProgress, resolved). Każdy test korzystający z danego
- * statusu dostaje własny, izolowany zasób.
+ * Creates dedicated fixture tickets in statuses that CANNOT be set
+ * through the public API (inProgress, resolved). Each test that needs a given
+ * status gets its own isolated resource.
  *
  * Fixture tickets:
- *  FIXTURE-CLOSE-INPROGRESS  → używany przez api/close-ticket TC-021 (gets closed)
- *  FIXTURE-NOTE-INPROGRESS   → używany przez api/add-note TC-032 (note added, stays inProgress)
- *  FIXTURE-REJECTED          → używany przez close TC-023 + note TC-035 (400 errors)
- *  FIXTURE-RESOLVED          → używany przez close TC-024 + note TC-034 (400 errors, no state change)
- *  FIXTURE-E2E-INPROGRESS    → używany przez e2e/ticket-journey (note + close)
+ *  FIXTURE-CLOSE-INPROGRESS  -> used by api/close-ticket TC-021 (gets closed)
+ *  FIXTURE-NOTE-INPROGRESS   -> used by api/add-note TC-032 (note added, stays inProgress)
+ *  FIXTURE-REJECTED          -> used by close TC-023 + note TC-035 (400 errors)
+ *  FIXTURE-RESOLVED          -> used by close TC-024 + note TC-034 (400 errors, no state change)
+ *  FIXTURE-E2E-INPROGRESS    -> used by e2e/ticket-journey (note + close)
  *
- * Mechanizm:
- *  Łączy się bezpośrednio z PostgreSQL przez wspólny helper `dbConnection`.
- *  Dzięki temu seedowanie i późniejsze asercje DB mogą korzystać z tej samej konfiguracji.
+ * Mechanism:
+ *  Connects directly to PostgreSQL via the shared `dbConnection` helper.
+ *  This way seeding and later DB assertions can use the same configuration.
  */
 
-import type { FullConfig } from '@playwright/test';
-import { createDbConnection } from './helpers/dbConnection';
+import type { FullConfig } from "@playwright/test";
+import { createDbConnection } from "./helpers/dbConnection";
 
-/** Fixture IDs – muszą być zgodne z FIXTURES w helpers/fixtures.ts */
+/** Fixture IDs - must stay in sync with FIXTURES in helpers/fixtures.ts */
 export const FIXTURE_IDS = {
-  CLOSE_INPROGRESS: 'FIXTURE-CLOSE-INPROGRESS',
-  NOTE_INPROGRESS: 'FIXTURE-NOTE-INPROGRESS',
-  REJECTED: 'FIXTURE-REJECTED',
-  RESOLVED: 'FIXTURE-RESOLVED',
-  E2E_INPROGRESS: 'FIXTURE-E2E-INPROGRESS',
+  CLOSE_INPROGRESS: "FIXTURE-CLOSE-INPROGRESS",
+  NOTE_INPROGRESS: "FIXTURE-NOTE-INPROGRESS",
+  REJECTED: "FIXTURE-REJECTED",
+  RESOLVED: "FIXTURE-RESOLVED",
+  E2E_INPROGRESS: "FIXTURE-E2E-INPROGRESS",
 } as const;
 
 type FixtureSeed = {
@@ -39,39 +39,41 @@ type FixtureSeed = {
 
 const FIXTURE_SEEDS: FixtureSeed[] = [
   {
-    tenantId: 'alpha',
+    tenantId: "alpha",
     externalId: FIXTURE_IDS.CLOSE_INPROGRESS,
     serviceId: 100007,
-    description: 'Fixture: close-ticket TC-021 - zamkniecie z inProgress',
-    status: 'inProgress',
+    description: "Fixture: close-ticket TC-021 - zamkniecie z inProgress",
+    status: "inProgress",
   },
   {
-    tenantId: 'alpha',
+    tenantId: "alpha",
     externalId: FIXTURE_IDS.NOTE_INPROGRESS,
     serviceId: 100007,
-    description: 'Fixture: add-note TC-032 - notatka do inProgress',
-    status: 'inProgress',
+    description: "Fixture: add-note TC-032 - notatka do inProgress",
+    status: "inProgress",
   },
   {
-    tenantId: 'alpha',
+    tenantId: "alpha",
     externalId: FIXTURE_IDS.REJECTED,
     serviceId: 100007,
-    description: 'Fixture: close TC-023 + note TC-035 - status rejected (testy negatywne)',
-    status: 'rejected',
+    description:
+      "Fixture: close TC-023 + note TC-035 - status rejected (testy negatywne)",
+    status: "rejected",
   },
   {
-    tenantId: 'alpha',
+    tenantId: "alpha",
     externalId: FIXTURE_IDS.RESOLVED,
     serviceId: 100008,
-    description: 'Fixture: close TC-024 + note TC-034 - status resolved (testy negatywne)',
-    status: 'resolved',
+    description:
+      "Fixture: close TC-024 + note TC-034 - status resolved (testy negatywne)",
+    status: "resolved",
   },
   {
-    tenantId: 'alpha',
+    tenantId: "alpha",
     externalId: FIXTURE_IDS.E2E_INPROGRESS,
     serviceId: 100007,
-    description: 'Fixture: E2E journey - notatka i zamkniecie z inProgress',
-    status: 'inProgress',
+    description: "Fixture: E2E journey - notatka i zamkniecie z inProgress",
+    status: "inProgress",
   },
 ];
 
@@ -80,8 +82,8 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
 
   try {
     await db.query(
-      'DELETE FROM public.trouble_ticket WHERE tenant_id = $1 AND external_id LIKE $2',
-      ['alpha', 'FIXTURE-%'],
+      "DELETE FROM public.trouble_ticket WHERE tenant_id = $1 AND external_id LIKE $2",
+      ["alpha", "FIXTURE-%"],
     );
 
     for (const seed of FIXTURE_SEEDS) {
@@ -89,11 +91,17 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
         `INSERT INTO public.trouble_ticket
           (tenant_id, external_id, service_id, description, status, created_at)
          VALUES ($1, $2, $3, $4, $5, NOW())`,
-        [seed.tenantId, seed.externalId, seed.serviceId, seed.description, seed.status],
+        [
+          seed.tenantId,
+          seed.externalId,
+          seed.serviceId,
+          seed.description,
+          seed.status,
+        ],
       );
     }
 
-    console.log('\n✓ Fixture tickets seeded (FIXTURE-*)');
+    console.log("\n✓ Fixture tickets seeded (FIXTURE-*)");
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new Error(

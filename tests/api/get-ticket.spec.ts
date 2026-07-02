@@ -1,28 +1,32 @@
 /**
- * API tests - Pobieranie i listowanie zgłoszeń (Get / List Ticket)
+ * API tests - Get and list tickets
  *
- * Endpointy:
+ * Endpoints:
  *  GET /api/v1/troubleTicket/{id}
  *  GET /api/v1/troubleTicket
  *
- * Cel:
- *  Weryfikacja odczytu zgłoszeń oraz izolacji danych pomiędzy tenantami.
+ * Goal:
+ *  Verify ticket retrieval and data isolation between tenants.
  */
 
-import { test, expect } from '../helpers/fixtures';
-import { feature, story, description, severity, attachment } from 'allure-js-commons';
-import { randomUUID } from 'node:crypto';
-import { createTicket, getTicket, listTickets } from '../helpers/ticket-api';
-import { attachApiResponse } from '../helpers/api-response';
+import { test, expect } from "../helpers/fixtures";
+import { feature, story, description, severity } from "allure-js-commons";
+import { randomUUID } from "node:crypto";
+import { createTicket, getTicket, listTickets } from "../helpers/ticket-api";
+import { attachApiResponse } from "../helpers/api-response";
 
 function extractExternalIds(body: unknown): string[] {
   if (Array.isArray(body)) {
     return body
-      .map((item) => (typeof item === 'object' && item !== null ? (item as { externalId?: string }).externalId : undefined))
-      .filter((id): id is string => typeof id === 'string');
+      .map((item) =>
+        typeof item === "object" && item !== null
+          ? (item as { externalId?: string }).externalId
+          : undefined,
+      )
+      .filter((id): id is string => typeof id === "string");
   }
 
-  if (typeof body === 'object' && body !== null) {
+  if (typeof body === "object" && body !== null) {
     const container = body as {
       items?: unknown[];
       content?: unknown[];
@@ -30,12 +34,21 @@ function extractExternalIds(body: unknown): string[] {
       tickets?: unknown[];
     };
 
-    const candidates = [container.items, container.content, container.data, container.tickets];
+    const candidates = [
+      container.items,
+      container.content,
+      container.data,
+      container.tickets,
+    ];
     for (const candidate of candidates) {
       if (Array.isArray(candidate)) {
         return candidate
-          .map((item) => (typeof item === 'object' && item !== null ? (item as { externalId?: string }).externalId : undefined))
-          .filter((id): id is string => typeof id === 'string');
+          .map((item) =>
+            typeof item === "object" && item !== null
+              ? (item as { externalId?: string }).externalId
+              : undefined,
+          )
+          .filter((id): id is string => typeof id === "string");
       }
     }
   }
@@ -43,132 +56,163 @@ function extractExternalIds(body: unknown): string[] {
   return [];
 }
 
-test.describe('Pobieranie i listowanie zgłoszeń - GET /api/v1/troubleTicket', () => {
-  test(
-    'TC-040: Szczegóły własnego zgłoszenia zwracają HTTP 200',
-    async ({ request, acknowledgedTicket }) => {
-      await feature('Odczyt zgłoszeń');
-      await story('Szczegóły zgłoszenia');
-      await severity('high');
-      await description(
-        'Tenant powinien móc pobrać szczegóły własnego zgłoszenia po externalId.',
-      );
+test.describe("Pobieranie i listowanie zgłoszeń - GET /api/v1/troubleTicket", () => {
+  test("TC-040: Szczegóły własnego zgłoszenia zwracają HTTP 200", async ({
+    request,
+    acknowledgedTicket,
+  }) => {
+    await feature("Odczyt zgłoszeń");
+    await story("Szczegóły zgłoszenia");
+    await severity("high");
+    await description(
+      "Tenant powinien móc pobrać szczegóły własnego zgłoszenia po externalId.",
+    );
 
-      const response = await test.step(
-        `GET /troubleTicket/${acknowledgedTicket} jako alpha`,
-        async () => getTicket(request, 'alpha', acknowledgedTicket),
-      );
+    const response =
+      await test.step(`GET /troubleTicket/${acknowledgedTicket} jako alpha`, async () =>
+        getTicket(request, "alpha", acknowledgedTicket));
 
-      await test.step('Weryfikacja HTTP 200 i externalId', async () => {
-        expect(response.status(), 'GET szczegółów ticketu powinien zwrócić HTTP 200').toBe(200);
-        const body = await attachApiResponse<{ externalId: string }>('API Response (TC-040)', response);
-        expect(body.externalId, 'Odpowiedź powinna zawierać prawidłowy externalId').toBe(acknowledgedTicket);
+    await test.step("Weryfikacja HTTP 200 i externalId", async () => {
+      expect(
+        response.status(),
+        "GET szczegółów ticketu powinien zwrócić HTTP 200",
+      ).toBe(200);
+      const body = await attachApiResponse<{ externalId: string }>(
+        "API Response (TC-040)",
+        response,
+      );
+      expect(
+        body.externalId,
+        "Odpowiedź powinna zawierać prawidłowy externalId",
+      ).toBe(acknowledgedTicket);
+    });
+  });
+
+  test("TC-041: Tenant nie może pobrać szczegółów ticketu innego tenanta", async ({
+    request,
+  }) => {
+    await feature("Odczyt zgłoszeń");
+    await story("Izolacja tenantów");
+    await severity("critical");
+    await description(
+      "Ticket utworzony przez beta nie powinien być dostępny dla alpha przez endpoint szczegółów.",
+    );
+
+    const externalId = `TC-041-BETA-${randomUUID()}`;
+
+    await test.step("Utworzenie ticketu jako beta", async () => {
+      const createResponse = await createTicket(request, "beta", {
+        externalId,
+        serviceId: 100002,
+        description: "TC-041: ticket należący do beta",
+        status: "new",
       });
-    },
-  );
+      expect(createResponse.status()).toBe(201);
+    });
 
-  test(
-    'TC-041: Tenant nie może pobrać szczegółów ticketu innego tenanta',
-    async ({ request }) => {
-      await feature('Odczyt zgłoszeń');
-      await story('Izolacja tenantów');
-      await severity('critical');
-      await description(
-        'Ticket utworzony przez beta nie powinien być dostępny dla alpha przez endpoint szczegółów.',
+    const response =
+      await test.step("Próba GET tego samego ticketu jako alpha", async () =>
+        getTicket(request, "alpha", externalId));
+
+    await test.step("Weryfikacja braku dostępu: HTTP 404 + TROUBLE_TICKET_NOT_FOUND", async () => {
+      expect(
+        response.status(),
+        "Tenant alpha nie powinien mieć dostępu do ticketu beta, oczekiwane HTTP 404",
+      ).toBe(404);
+      const body = await attachApiResponse<{ code: string }>(
+        "API Response (TC-041)",
+        response,
       );
+      expect(
+        body.code,
+        "Kod błędu dla braku dostępu powinien być TROUBLE_TICKET_NOT_FOUND",
+      ).toBe("TROUBLE_TICKET_NOT_FOUND");
+    });
+  });
 
-      const externalId = `TC-041-BETA-${randomUUID()}`;
+  test("TC-042: Listowanie zwraca ticket utworzony przez bieżącego tenanta", async ({
+    request,
+  }) => {
+    await feature("Odczyt zgłoszeń");
+    await story("Listowanie zgłoszeń");
+    await severity("high");
+    await description(
+      "Ticket utworzony przez alpha powinien pojawić się na liście GET /troubleTicket dla alpha.",
+    );
 
-      await test.step('Utworzenie ticketu jako beta', async () => {
-        const createResponse = await createTicket(request, 'beta', {
-          externalId,
-          serviceId: 100002,
-          description: 'TC-041: ticket należący do beta',
-          status: 'new',
-        });
-        expect(createResponse.status()).toBe(201);
+    const externalId = `TC-042-ALPHA-${randomUUID()}`;
+
+    await test.step("Utworzenie ticketu jako alpha", async () => {
+      const createResponse = await createTicket(request, "alpha", {
+        externalId,
+        serviceId: 100002,
+        description: "TC-042: ticket widoczny na liście alpha",
+        status: "new",
       });
+      expect(createResponse.status()).toBe(201);
+    });
 
-      const response = await test.step(
-        'Próba GET tego samego ticketu jako alpha',
-        async () => getTicket(request, 'alpha', externalId),
+    const response =
+      await test.step("GET /troubleTicket jako alpha", async () =>
+        listTickets(request, "alpha"));
+
+    await test.step("Weryfikacja HTTP 200 i obecności externalId na liście", async () => {
+      expect(
+        response.status(),
+        "GET listę ticketów powinien zwrócić HTTP 200",
+      ).toBe(200);
+      const body = await attachApiResponse<unknown>(
+        "API Response (TC-042)",
+        response,
       );
+      const externalIds = extractExternalIds(body);
+      expect(
+        externalIds,
+        "Utworzony ticket powinien być widoczny na liście alpha",
+      ).toContain(externalId);
+    });
+  });
 
-      await test.step('Weryfikacja braku dostępu: HTTP 404 + TROUBLE_TICKET_NOT_FOUND', async () => {
-        expect(response.status(), 'Tenant alpha nie powinien mieć dostępu do ticketu beta, oczekiwane HTTP 404').toBe(404);
-        const body = await attachApiResponse<{ code: string }>('API Response (TC-041)', response);
-        expect(body.code, 'Kod błędu dla braku dostępu powinien być TROUBLE_TICKET_NOT_FOUND').toBe('TROUBLE_TICKET_NOT_FOUND');
+  test("TC-043: Listowanie nie zwraca ticketów innego tenanta", async ({
+    request,
+  }) => {
+    await feature("Odczyt zgłoszeń");
+    await story("Izolacja tenantów");
+    await severity("critical");
+    await description(
+      "Ticket utworzony przez beta nie powinien pojawić się na liście GET /troubleTicket dla alpha.",
+    );
+
+    const betaExternalId = `TC-043-BETA-${randomUUID()}`;
+
+    await test.step("Utworzenie ticketu jako beta", async () => {
+      const createResponse = await createTicket(request, "beta", {
+        externalId: betaExternalId,
+        serviceId: 100002,
+        description: "TC-043: ticket beta niewidoczny dla alpha",
+        status: "new",
       });
-    },
-  );
+      expect(createResponse.status()).toBe(201);
+    });
 
-  test(
-    'TC-042: Listowanie zwraca ticket utworzony przez bieżącego tenanta',
-    async ({ request }) => {
-      await feature('Odczyt zgłoszeń');
-      await story('Listowanie zgłoszeń');
-      await severity('high');
-      await description(
-        'Ticket utworzony przez alpha powinien pojawić się na liście GET /troubleTicket dla alpha.',
+    const response =
+      await test.step("GET /troubleTicket jako alpha", async () =>
+        listTickets(request, "alpha"));
+
+    await test.step("Weryfikacja HTTP 200 i braku obcego externalId na liście", async () => {
+      expect(
+        response.status(),
+        "GET listę ticketów powinien zwrócić HTTP 200",
+      ).toBe(200);
+      const body = await attachApiResponse<unknown>(
+        "API Response (TC-043)",
+        response,
       );
-
-      const externalId = `TC-042-ALPHA-${randomUUID()}`;
-
-      await test.step('Utworzenie ticketu jako alpha', async () => {
-        const createResponse = await createTicket(request, 'alpha', {
-          externalId,
-          serviceId: 100002,
-          description: 'TC-042: ticket widoczny na liście alpha',
-          status: 'new',
-        });
-        expect(createResponse.status()).toBe(201);
-      });
-
-      const response = await test.step('GET /troubleTicket jako alpha', async () =>
-        listTickets(request, 'alpha'),
-      );
-
-      await test.step('Weryfikacja HTTP 200 i obecności externalId na liście', async () => {
-        expect(response.status(), 'GET listę ticketów powinien zwrócić HTTP 200').toBe(200);
-        const body = await attachApiResponse<unknown>('API Response (TC-042)', response);
-        const externalIds = extractExternalIds(body);
-        expect(externalIds, 'Utworzony ticket powinien być widoczny na liście alpha').toContain(externalId);
-      });
-    },
-  );
-
-  test(
-    'TC-043: Listowanie nie zwraca ticketów innego tenanta',
-    async ({ request }) => {
-      await feature('Odczyt zgłoszeń');
-      await story('Izolacja tenantów');
-      await severity('critical');
-      await description(
-        'Ticket utworzony przez beta nie powinien pojawić się na liście GET /troubleTicket dla alpha.',
-      );
-
-      const betaExternalId = `TC-043-BETA-${randomUUID()}`;
-
-      await test.step('Utworzenie ticketu jako beta', async () => {
-        const createResponse = await createTicket(request, 'beta', {
-          externalId: betaExternalId,
-          serviceId: 100002,
-          description: 'TC-043: ticket beta niewidoczny dla alpha',
-          status: 'new',
-        });
-        expect(createResponse.status()).toBe(201);
-      });
-
-      const response = await test.step('GET /troubleTicket jako alpha', async () =>
-        listTickets(request, 'alpha'),
-      );
-
-      await test.step('Weryfikacja HTTP 200 i braku obcego externalId na liście', async () => {
-        expect(response.status(), 'GET listę ticketów powinien zwrócić HTTP 200').toBe(200);
-        const body = await attachApiResponse<unknown>('API Response (TC-043)', response);
-        const externalIds = extractExternalIds(body);
-        expect(externalIds, 'Ticket beta nie powinien być widoczny na liście alpha (izolacja tenantów)').not.toContain(betaExternalId);
-      });
-    },
-  );
+      const externalIds = extractExternalIds(body);
+      expect(
+        externalIds,
+        "Ticket beta nie powinien być widoczny na liście alpha (izolacja tenantów)",
+      ).not.toContain(betaExternalId);
+    });
+  });
 });
