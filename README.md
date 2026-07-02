@@ -147,5 +147,7 @@ npm run report:open
 
 ## Uwagi
 
-- Czesc testow API failuje, poniewaz logika zmiany statusu po utworzeniu na acknowledged i rejected wymaga wyjasnienia, przyjeto zgodnie z trescia przekazaną w pliku TASK.md  "Po utworzeniu system może automatycznie zmienić status na `acknowledged`" ze po utworzeniu ticket powinien miec status acknowledged, nie rejected.
+- Czesc testow API failuje z dwoch powodow:
+   - poniewaz logika zmiany statusu po utworzeniu na acknowledged i rejected wymaga wyjasnienia, przyjeto zgodnie z trescia przekazaną w pliku TASK.md  "Po utworzeniu system może automatycznie zmienić status na `acknowledged`" ze po utworzeniu ticket powinien miec status acknowledged, nie rejected. 
+   - mozliwe jest dodanie ticketu o niepoprawnym serviceId, poza określonym w tresci TASK.md zakresem: "W środowisku testowym akceptowane są wartości: **100001 – 100030**"
 - Testy uzywaja unikalnych `externalId` (UUID), aby ograniczyc kolizje danych.

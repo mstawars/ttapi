@@ -130,7 +130,7 @@ Weryfikuje współpracę warstwy API, logiki biznesowej i bazy danych bez urucha
 - Negatywne ścieżki (4xx) wymagające rzeczywistego stanu serwera
 - Asercje bezpośrednio na bazie danych, np. weryfikacja liczby rekordów dla `externalId` i tenantów
 
-Jedyne testy weryfikujące działanie całego stosu (Keycloak + Spring Boot + PostgreSQL) razem.
+To jedyny typ testów, który sprawdza współdziałanie całego środowiska (Keycloak + Spring Boot + PostgreSQL).
 
 #### 3.2.4 Testy E2E interfejsu użytkownika
 **Technologia:** Playwright (TypeScript)  
@@ -152,11 +152,9 @@ Playwright oferuje pełną kontrolę przeglądarki, auto-waiting i wsparcie dla 
 | R1 | **Luki w izolacji tenantów** — błąd w `TenantExtractor` lub zapytaniu JPA może ujawnić dane innego tenanta | Średnie | Krytyczny | Dedykowane testy izolacji (cross-tenant GET/PATCH/POST) jako testy blokujące CI |
 | R2 | **Niespójny automat stanów** — nowe przejście dodane bez aktualizacji reguł w `TicketStatusResolver` | Niskie | Wysoki | Parametryczne testy jednostkowe pokrywające wszystkie kombinacje statusów |
 | R3 | **Idempotencja w scenariuszach race-condition** — równoległe żądania z tym samym `externalId` mogą tworzyć duplikaty | Niskie | Wysoki | Test współbieżny (2 wątki, ten sam payload) w testach integracyjnych |
-| R4 | **Regresja kontraktu OpenAPI** — zmiana modelu bez aktualizacji specyfikacji | Średnie | Wysoki | Walidacja response schema w testach API (np. Atlassian `swagger-request-validator`) |
-| R5 | **Fluktuacja środowiska Docker** — Keycloak lub PostgreSQL nie jest gotowy przy starcie testów | Wysokie | Średni | Health-check w skryptach testowych + retry logic przy uzyskiwaniu tokenu |
-| R6 | **Migracje Liquibase** — błędny skrypt SQL blokuje start aplikacji | Niskie | Wysoki | Test `@SpringBootTest` weryfikuje sam start kontekstu jako smoke test |
-| R7 | **Brak paginacji w listowaniu** — przy dużej liczbie zgłoszeń odpowiedź może być bardzo duża | Średnie | Niski | Test wydajności (30+ zgłoszeń) weryfikujący czas odpowiedzi < 500 ms |
-| R8 | **Wyciek informacji w błędach 404** — 404 zamiast 403 ukrywa istnienie zasobu, ale treść body musi być generyczna | Niskie | Średni | Weryfikacja, że body 404 nie zawiera informacji przynależących do innego tenanta |
+| R4 | **Migracje Liquibase** — błędny skrypt SQL blokuje start aplikacji | Niskie | Wysoki | Test `@SpringBootTest` weryfikuje sam start kontekstu jako smoke test |
+| R5 | **Brak paginacji w listowaniu** — przy dużej liczbie zgłoszeń odpowiedź może być bardzo duża | Średnie | Niski | Test wydajności (30+ zgłoszeń) weryfikujący czas odpowiedzi < 500 ms |
+| R6 | **Wyciek informacji w błędach 404** — 404 zamiast 403 ukrywa istnienie zasobu, ale treść body musi być generyczna | Niskie | Średni | Weryfikacja, że body 404 nie zawiera informacji przynależących do innego tenanta |
 
 ### 4.2 Wyzwania organizacyjne
 
@@ -331,7 +329,6 @@ Mapowanie na dostarczoną implementację przykładową:
 | Integracyjne (Java) | Spring Boot Test, MockMvc, Testcontainers, `spring-security-test` | Istniejąca infrastruktura w projekcie (`TroubleTicketIntegrationTest.java`) |
 | API Black-Box | Playwright + TypeScript | Playwright oferuje prosty i czytelny API client z wbudowanymi mechanizmami testowymi (fixtures, retries, steps) |
 | E2E UI | Playwright (TypeScript) | Spójność z frontendem TS; stabilne API, auto-waiting, trace viewer |
-| Kontrakt OpenAPI | `atlassian-swagger-request-validator` lub `openapi4j` | Automatyczna walidacja response względem `trouble-ticket-api.yaml` |
 | CI | GitHub Actions / GitLab CI | Uruchomienie testów integracyjnych z Testcontainers i testów E2E z Docker Compose |
 
 ---
